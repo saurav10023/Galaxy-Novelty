@@ -1,8 +1,8 @@
 // pages/admin/AdminProductsList.jsx
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import API from "../../api/axios";
-import { CATEGORIES } from "./productFieldConfig";
+import API from "../api/axios";
+import { CATEGORIES } from "../pages/Admin/productFieldConfig";
 
 const AdminProductsList = () => {
   const [products, setProducts] = useState([]);

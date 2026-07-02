@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react";
 import API from "../../api/axios";
-import { categoryFilterFields } from "../../config/categoryFilterFields";
+import { categoryFilterFields } from "../../config/categoryfilterfields";
 
 const inputBase =
   "font-mono text-[13px] bg-white border border-[#E1E3DD] rounded-lg px-3 py-2 text-[#14171C] focus:outline-none focus:border-[#2F5DFF] w-full";

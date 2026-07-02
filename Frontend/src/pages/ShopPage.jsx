@@ -10,9 +10,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import API from "../api/axios";
-import DynamicFilterSidebar from "../components/filters/DynamicFilterSidebar";
+import DynamicFilterSidebar from "../components/filters/Dynamicfiltersidebar";
 import ProductCard from "../components/ProductCard";
-import { CATEGORIES, sortOptions } from "../config/categoryFilterFields";
+import { CATEGORIES, sortOptions } from "../config/categoryfilterfields";
 
 const ShopPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
