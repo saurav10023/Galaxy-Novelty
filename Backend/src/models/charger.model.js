@@ -1,6 +1,6 @@
 // models/charger.model.js
 import { Schema } from "mongoose";
-import { Product } from "./product.model.js";
+import { Product } from "./Product.model.js";
 
 const chargerSchema = new Schema({
     wattage: {

@@ -1,5 +1,5 @@
 // controllers/search.controller.js
-import { Product } from "../models/product.model.js";
+import { Product } from "../models/Product.model.js";
 import { buildProductQuery } from "../utils/buildProductQuery.js";
 import { buildSortQuery } from "../utils/buildSortQuery.js";
 import { sanitizeProductList } from "../utils/sanitizeProduct.js";

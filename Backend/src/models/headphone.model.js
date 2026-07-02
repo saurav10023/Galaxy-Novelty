@@ -1,6 +1,6 @@
 // models/headphone.model.js
 import { Schema } from "mongoose";
-import { Product } from "./product.model.js";
+import { Product } from "./Product.model.js";
 
 const headphoneSchema = new Schema({
     type: {

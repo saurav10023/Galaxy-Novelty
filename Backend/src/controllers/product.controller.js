@@ -1,5 +1,5 @@
 // controllers/product.controller.js
-import { Product } from "../models/product.model.js";
+import { Product } from "../models/Product.model.js";
 import { getModelByCategory } from "../utils/productModelMap.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 import { sanitizeProduct, sanitizeProductList } from "../utils/sanitizeProduct.js";
