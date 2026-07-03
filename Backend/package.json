@@ -16,6 +16,7 @@
   },
   "description": "",
   "dependencies": {
+    "@google/genai": "^2.10.0",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.9.0",
     "cookie-parser": "^1.4.7",
@@ -29,6 +30,7 @@
     "mongoose": "^9.3.0",
     "multer": "^2.1.1",
     "nodemailer": "^8.0.2",
+    "openai": "^6.45.0",
     "razorpay": "^2.9.6",
     "twilio": "^5.13.0"
   }

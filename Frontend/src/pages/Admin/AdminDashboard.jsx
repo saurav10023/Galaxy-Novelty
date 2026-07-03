@@ -1,93 +1,56 @@
 // pages/admin/AdminDashboard.jsx
+//
+// TEMPLATE — merge this state/handlers pattern into your real AdminDashboard.jsx.
+// I don't have your actual file, so keep your existing layout (sidebar, header,
+// other tabs, etc.) and just make sure the "products" section follows this shape:
+// track WHICH product id is being edited, not just which section is showing.
+
 import { useState } from "react";
 import AdminProductsList from "./AdminProductList";
 import AdminProductForm from "./AdminProductForm";
 
-const TABS = [
-  { key: "inventory", label: "Inventory" },
-  { key: "create", label: "Add product" },
-  // Add more sections here later, e.g. { key: "orders", label: "Orders" },
-  // and render them in the <main> block below.
-];
-
 const AdminDashboard = () => {
-  const [section, setSection] = useState("inventory"); // "inventory" | "create" | "edit"
-  const [editingId, setEditingId] = useState(null); // productId being edited, or null
+  // "list" -> show the inventory table/cards
+  // "form" -> show the add/edit form
+  const [productsSection, setProductsSection] = useState("list");
 
-  // Called from the list when "Edit" is clicked on a row
+  // null            -> AdminProductForm renders in CREATE mode
+  // a product's _id -> AdminProductForm renders in EDIT mode, pre-filled
+  const [editingProductId, setEditingProductId] = useState(null);
+
   const handleEditProduct = (id) => {
-    setEditingId(id);
-    setSection("edit");
+    setEditingProductId(id);
+    setProductsSection("form");
   };
 
-  const handleAddNew = () => {
-    setEditingId(null);
-    setSection("create");
+  const handleAddNewProduct = () => {
+    setEditingProductId(null);
+    setProductsSection("form");
   };
 
-  // Called when a create/edit form finishes saving, or is cancelled —
-  // both just return to the inventory view.
   const handleFormDone = () => {
-    setEditingId(null);
-    setSection("inventory");
-  };
-
-  const handleTabClick = (key) => {
-    setEditingId(null); // leaving edit mode clears the target id
-    setSection(key);
+    setEditingProductId(null);
+    setProductsSection("list");
   };
 
   return (
-    <div className="min-h-screen bg-[#F6F7F3]">
-      <header className="bg-white border-b border-[#E1E3DD]">
-        <div className="max-w-6xl mx-auto px-6 md:px-10">
-          <div className="py-4">
-            <h1 className="font-display text-[18px] font-semibold text-[#14171C] tracking-tight">
-              Admin
-            </h1>
-          </div>
+    <div>
+      {/* ...your existing dashboard chrome (sidebar / tabs / header) stays here... */}
 
-          <nav className="flex items-center gap-1">
-            {TABS.map((tab) => {
-              // "Inventory" tab stays highlighted while editing a product,
-              // since editing is conceptually part of inventory management.
-              const isActive =
-                section === tab.key || (tab.key === "inventory" && section === "edit");
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => handleTabClick(tab.key)}
-                  className={`px-4 py-2.5 text-[13.5px] font-medium border-b-2 transition-colors duration-150 ${
-                    isActive
-                      ? "border-[#2F5DFF] text-[#14171C]"
-                      : "border-transparent text-[#9CA0A6] hover:text-[#14171C]"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-      </header>
+      {productsSection === "list" && (
+        <AdminProductsList
+          onEdit={handleEditProduct}
+          onAddNew={handleAddNewProduct}
+        />
+      )}
 
-      <main>
-        {section === "inventory" && (
-          <AdminProductsList onEdit={handleEditProduct} onAddNew={handleAddNew} />
-        )}
-
-        {section === "create" && (
-          <AdminProductForm onDone={handleFormDone} onCancel={handleFormDone} />
-        )}
-
-        {section === "edit" && editingId && (
-          <AdminProductForm
-            productId={editingId}
-            onDone={handleFormDone}
-            onCancel={handleFormDone}
-          />
-        )}
-      </main>
+      {productsSection === "form" && (
+        <AdminProductForm
+          productId={editingProductId}
+          onDone={handleFormDone}
+          onCancel={handleFormDone}
+        />
+      )}
     </div>
   );
 };

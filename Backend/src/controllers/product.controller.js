@@ -21,81 +21,173 @@ const createProduct = asyncHandler(async (req, res) => {
         throw new ApiError(400, `Invalid category: ${category}`);
     }
 
-    // parse pricing if sent as a JSON string (common with multipart/form-data)
+    // Parse pricing if sent as JSON string (multipart/form-data)
     let pricing = req.body.pricing;
     if (typeof pricing === "string") {
-        pricing = JSON.parse(pricing);
+        try {
+            pricing = JSON.parse(pricing);
+        } catch {
+            throw new ApiError(400, "Invalid pricing format");
+        }
     }
 
     if (!pricing?.purchasePrice || !pricing?.sellingPrice) {
         throw new ApiError(400, "purchasePrice and sellingPrice are required");
     }
 
-    // handle image uploads
+    // Handle image uploads (optional)
     const files = req.files || [];
-    if (files.length === 0) {
-        throw new ApiError(400, "At least one product image is required");
-    }
-
     const uploadedImages = [];
-    for (const file of files) {
-        const result = await uploadOnCloudinary(file.path);
-        if (!result?.url) {
-            throw new ApiError(500, "Error uploading one or more images");
+
+    if (files.length > 0) {
+        for (const file of files) {
+            const result = await uploadOnCloudinary(file.path);
+
+            if (!result?.url || !result?.public_id) {
+                throw new ApiError(500, "Error uploading one or more images");
+            }
+
+            uploadedImages.push({
+                url: result.url,
+                publicId: result.public_id,
+            });
         }
-        uploadedImages.push({ url: result.url, publicId: result.public_id });
     }
 
     const productData = {
         ...req.body,
         pricing,
-        images: uploadedImages
     };
 
-    // remove fields that shouldn't be set directly
-    delete productData.category; // discriminator key is set automatically by the model
+    // Add images only if uploaded
+    if (uploadedImages.length > 0) {
+        productData.images = uploadedImages;
+    }
+
+    // Prevent category from being overwritten
+    delete productData.category;
 
     const product = await Model.create(productData);
 
-    return res
-        .status(201)
-        .json(new ApiResponse(201, product, "Product created successfully"));
+    return res.status(201).json(
+        new ApiResponse(201, product, "Product created successfully")
+    );
 });
 
 // ---- UPDATE PRODUCT ----
-// Admin only. Fetches the doc first to know which discriminator schema to validate against.
+// Admin only. Fetches the document first to know which discriminator schema to validate against.
 const updateProduct = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const existingProduct = await Product.findById(id);
+
     if (!existingProduct) {
         throw new ApiError(404, "Product not found");
     }
 
     const Model = getModelByCategory(existingProduct.category);
+
     if (!Model) {
-        throw new ApiError(400, "Invalid product category on existing record");
+        throw new ApiError(400, "Invalid product category");
     }
 
+    // Parse pricing
     let pricing = req.body.pricing;
     if (typeof pricing === "string") {
-        pricing = JSON.parse(pricing);
+        try {
+            pricing = JSON.parse(pricing);
+        } catch {
+            throw new ApiError(400, "Invalid pricing format");
+        }
     }
 
-    const updates = { ...req.body };
-    if (pricing) updates.pricing = pricing;
-    delete updates.category; // category should never change after creation
-    delete updates.images;   // images handled separately via addProductImages/removeProductImage
+    const setUpdates = {
+        ...req.body,
+    };
+
+    if (pricing) {
+        // IMPORTANT: $set on a nested path REPLACES the whole subdocument,
+        // it does not merge. Merge with the existing pricing here so a
+        // partial payload (e.g. only { sellingPrice }) can't silently wipe
+        // purchasePrice or negotiation, and can't trigger a spurious
+        // "required" validation error for fields the client never touched.
+        const existingPricing = existingProduct.pricing?.toObject
+            ? existingProduct.pricing.toObject()
+            : existingProduct.pricing || {};
+
+        const { negotiation: incomingNegotiation, ...restPricing } = pricing;
+
+        const mergedPricing = {
+            ...existingPricing,
+            ...restPricing,
+        };
+
+        if (incomingNegotiation === null) {
+            // Explicit clear signal from the client — remove negotiation entirely.
+            delete mergedPricing.negotiation;
+        } else if (incomingNegotiation !== undefined) {
+            // Object provided — merge into whatever negotiation already existed
+            // so e.g. sending only { minPrice } doesn't wipe an existing maxPrice.
+            mergedPricing.negotiation = {
+                ...(existingPricing.negotiation || {}),
+                ...incomingNegotiation,
+            };
+        }
+        // incomingNegotiation === undefined (key absent from payload entirely)
+        // -> leave existingPricing.negotiation as-is, already carried over above.
+
+        setUpdates.pricing = mergedPricing;
+    }
+
+    delete setUpdates.category;
+    delete setUpdates.images;
+
+    const updateQuery = {
+        $set: setUpdates,
+    };
+
+    // Optional image upload
+    const files = req.files || [];
+
+    if (files.length > 0) {
+        const uploadedImages = [];
+
+        for (const file of files) {
+            const result = await uploadOnCloudinary(file.path);
+
+            if (!result?.url || !result?.public_id) {
+                throw new ApiError(500, "Error uploading image");
+            }
+
+            uploadedImages.push({
+                url: result.url,
+                publicId: result.public_id,
+            });
+        }
+
+        updateQuery.$push = {
+            images: {
+                $each: uploadedImages,
+            },
+        };
+    }
 
     const updatedProduct = await Model.findByIdAndUpdate(
         id,
-        { $set: updates },
-        { new: true, runValidators: true }
+        updateQuery,
+        {
+            new: true,
+            runValidators: true,
+        }
     );
 
-    return res
-        .status(200)
-        .json(new ApiResponse(200, updatedProduct, "Product updated successfully"));
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            updatedProduct,
+            "Product updated successfully"
+        )
+    );
 });
 
 // ---- ADD IMAGES TO EXISTING PRODUCT ----
@@ -115,10 +207,15 @@ const addProductImages = asyncHandler(async (req, res) => {
     const uploadedImages = [];
     for (const file of files) {
         const result = await uploadOnCloudinary(file.path);
-        if (!result?.url) {
+        if (!result?.url || !result?.public_id) {
             throw new ApiError(500, "Error uploading one or more images");
         }
         uploadedImages.push({ url: result.url, publicId: result.public_id });
+    }
+
+    // Defensive: ensure images array exists before pushing
+    if (!Array.isArray(product.images)) {
+        product.images = [];
     }
 
     product.images.push(...uploadedImages);
@@ -143,13 +240,19 @@ const removeProductImage = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Product not found");
     }
 
-    if (product.images.length <= 1) {
-        throw new ApiError(400, "Product must have at least one image");
+    const imageExists = (product.images || []).some(
+        (img) => img.publicId === publicId
+    );
+
+    if (!imageExists) {
+        throw new ApiError(404, "Image not found on this product");
     }
 
     await deleteFromCloudinary(publicId);
 
-    product.images = product.images.filter((img) => img.publicId !== publicId);
+    product.images = (product.images || []).filter(
+        (img) => img.publicId !== publicId
+    );
     await product.save();
 
     return res
@@ -166,9 +269,11 @@ const deleteProduct = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Product not found");
     }
 
-    // clean up cloudinary images
-    for (const img of product.images) {
-        await deleteFromCloudinary(img.publicId);
+    // clean up cloudinary images (defensive against missing/undefined images or publicId)
+    for (const img of product.images || []) {
+        if (img?.publicId) {
+            await deleteFromCloudinary(img.publicId);
+        }
     }
 
     await product.deleteOne();
@@ -178,7 +283,28 @@ const deleteProduct = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, {}, "Product deleted successfully"));
 });
 
-// ---- GET SINGLE PRODUCT ----
+// ---- GET SINGLE PRODUCT (ADMIN) ----
+// Protected route — must sit behind auth + role middleware in the router
+// (e.g. router.get("/admin/:id", verifyJWT, isAdmin, getProductByIdAdmin)).
+// Unlike the public getProductById, this:
+//   - never filters on isActive (admins need to edit inactive/delisted products too)
+//   - never sanitizes the response — purchasePrice and full pricing always included
+// This is what the admin edit form should call, so pricing is never silently
+// stripped because of a missing/expired auth token on the public route.
+const getProductByIdAdmin = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const product = await Product.findById(id);
+    if (!product) {
+        throw new ApiError(404, "Product not found");
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, product, "Product fetched successfully"));
+});
+
+
 // Public route. Sanitizes pricing based on whether req.user exists (admin logged in) or not.
 const getProductById = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -255,6 +381,7 @@ export {
     removeProductImage,
     deleteProduct,
     getProductById,
+    getProductByIdAdmin,
     getAllProducts,
     toggleProductStatus
 };

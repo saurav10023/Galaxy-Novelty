@@ -2,7 +2,8 @@
 import { Router } from "express";
 import {
     createProduct, updateProduct, addProductImages, removeProductImage,
-    deleteProduct, getProductById, getAllProducts, toggleProductStatus
+    deleteProduct, getProductById, getAllProducts, toggleProductStatus,
+    getProductByIdAdmin
 } from "../controllers/product.controller.js";
 import { searchProducts, getAvailableFilters } from "../controllers/search.controller.js";
 import { verifyjwt } from "../middlewares/auth.middleware.js";
@@ -23,8 +24,16 @@ router.route("/admin/search").get(verifyjwt , verifyAdmin, searchProducts);
 router.route("/admin/filters/:category").get(getAvailableFilters);
 
 // param-based routes LAST
+router.route("/admin/:id").get(verifyjwt , verifyAdmin , getProductByIdAdmin);
 router.route("/:id").get(getProductById);
-router.route("/:id").patch(verifyjwt, verifyAdmin, updateProduct);
+// wherever your routes are defined
+router.patch(
+  "/:id",
+  verifyjwt,
+  verifyAdmin, // or whatever auth middleware you use
+  upload.array("images"), // <-- this is what populates req.body and req.files
+  updateProduct
+);
 router.route("/:id").delete(verifyjwt, verifyAdmin, deleteProduct);
 router.route("/:id/images").post(verifyjwt, verifyAdmin, upload.array("images", 5), addProductImages);
 router.route("/:id/images").delete(verifyjwt, verifyAdmin, removeProductImage);

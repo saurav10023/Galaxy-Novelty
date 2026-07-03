@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import logo from "../assets/galaxy-novelty-logo.png";
 
@@ -33,16 +33,14 @@ const ChevronDown = () => (
   </svg>
 );
 
-// Logo is a square artwork on its own white ground, so it's wrapped in a
-// small white rounded chip -- keeps it crisp on the navbar's off-white
-// (#F3F4F1) background and, reused as-is, on the footer's dark one too.
+// Logo chip stays white/rounded -- reads crisply against the solid orange bar.
 const BrandMark = ({ onClick }) => (
   <Link to="/" onClick={onClick} className="flex items-center gap-2.5 shrink-0">
-    <span className="w-11 h-11 rounded-lg bg-white ring-1 ring-[#E1E3DD] overflow-hidden flex items-center justify-center shrink-0">
+    <span className="w-11 h-11 rounded-lg bg-white ring-1 ring-white/40 overflow-hidden flex items-center justify-center shrink-0">
       <img src={logo} alt="Galaxy Novelty" className="w-full h-full object-cover" />
     </span>
-    <span className="font-display text-[17px] font-semibold text-[#14171C] tracking-tight leading-none hidden sm:block">
-      GALAXY<span className="text-[#2F5DFF]"> NOVELTY</span>
+    <span className="font-display text-[17px] font-semibold text-white tracking-tight leading-none hidden sm:block">
+      GALAXY<span className="text-white/80"> NOVELTY</span>
     </span>
   </Link>
 );
@@ -50,6 +48,7 @@ const BrandMark = ({ onClick }) => (
 const Navbar = () => {
   const { user, logout, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -57,6 +56,8 @@ const Navbar = () => {
   const [accountOpen, setAccountOpen] = useState(false);
 
   const isStaff = user?.role === "admin";
+
+  const activeCategory = new URLSearchParams(location.search).get("category");
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -74,7 +75,7 @@ const Navbar = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-[#F3F4F1]/90 backdrop-blur-md border-b border-[#E1E3DD]">
+    <header className="sticky top-0 z-50 bg-gradient-to-r from-[#FF7A1A] to-[#F5590A] backdrop-blur-md shadow-[0_4px_20px_-8px_rgba(245,89,10,0.5)]">
       <div className="max-w-7xl mx-auto px-6 md:px-10">
         <div className="h-16 flex items-center justify-between gap-6">
           {/* Brand */}
@@ -82,15 +83,22 @@ const Navbar = () => {
 
           {/* Desktop nav links */}
           <nav className="hidden md:flex items-center gap-1">
-            {CATEGORY_LINKS.map((cat) => (
-              <Link
-                key={cat.key}
-                to={`/shop?category=${cat.key}`}
-                className="px-3.5 py-2 rounded-full text-[14px] font-medium text-[#4B4F57] hover:text-[#14171C] hover:bg-white transition-colors duration-150"
-              >
-                {cat.label}
-              </Link>
-            ))}
+            {CATEGORY_LINKS.map((cat) => {
+              const isActive = activeCategory === cat.key;
+              return (
+                <Link
+                  key={cat.key}
+                  to={`/shop?category=${cat.key}`}
+                  className={`px-3.5 py-2 rounded-full text-[14px] font-medium transition-colors duration-150 ${
+                    isActive
+                      ? "bg-white text-[#F5590A] shadow-sm"
+                      : "text-white/90 hover:text-white hover:bg-white/15"
+                  }`}
+                >
+                  {cat.label}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* Right side controls */}
@@ -106,14 +114,14 @@ const Navbar = () => {
                     onChange={(e) => setSearchValue(e.target.value)}
                     onBlur={() => !searchValue && setSearchOpen(false)}
                     placeholder="Search products…"
-                    className="font-mono text-[13px] bg-white border border-[#E1E3DD] rounded-full pl-4 pr-4 py-2 w-56 text-[#14171C] placeholder:text-[#9CA0A6] focus:outline-none focus:border-[#2F5DFF] transition-all"
+                    className="font-mono text-[13px] bg-black/20 border border-white/25 rounded-full pl-4 pr-4 py-2 w-56 text-white placeholder:text-white/60 focus:outline-none focus:border-white/70 transition-all"
                   />
                 </form>
               ) : (
                 <button
                   onClick={() => setSearchOpen(true)}
                   aria-label="Search products"
-                  className="w-9 h-9 flex items-center justify-center rounded-full text-[#4B4F57] hover:text-[#14171C] hover:bg-white transition-colors duration-150"
+                  className="w-9 h-9 flex items-center justify-center rounded-full text-white/90 hover:text-white hover:bg-white/15 transition-colors duration-150"
                 >
                   <SearchIcon />
                 </button>
@@ -127,15 +135,17 @@ const Navbar = () => {
                   <div className="relative hidden md:block">
                     <button
                       onClick={() => setAccountOpen((v) => !v)}
-                      className="flex items-center gap-2 pl-3 pr-2.5 py-1.5 rounded-full border border-[#E1E3DD] bg-white hover:border-[#14171C] transition-colors duration-150"
+                      className="flex items-center gap-2 pl-3 pr-2.5 py-1.5 rounded-full border border-white/30 bg-white/10 hover:bg-white/20 transition-colors duration-150"
                     >
-                      <span className="w-6 h-6 rounded-full bg-[#2F5DFF] text-white text-[11px] font-mono flex items-center justify-center uppercase">
+                      <span className="w-6 h-6 rounded-full bg-white text-[#F5590A] text-[11px] font-mono font-semibold flex items-center justify-center uppercase">
                         {user.username?.charAt(0) || "S"}
                       </span>
-                      <span className="text-[13.5px] font-medium text-[#14171C] max-w-[100px] truncate">
+                      <span className="text-[13.5px] font-medium text-white max-w-[100px] truncate">
                         {user.username}
                       </span>
-                      <ChevronDown />
+                      <span className="text-white/80">
+                        <ChevronDown />
+                      </span>
                     </button>
 
                     {accountOpen && (
@@ -165,7 +175,7 @@ const Navbar = () => {
                 ) : (
                   <Link
                     to="/login"
-                    className="hidden md:inline-flex items-center justify-center rounded-full border border-[#E1E3DD] text-[13.5px] font-medium text-[#4B4F57] px-4 py-2 hover:border-[#14171C] hover:text-[#14171C] transition-colors duration-150"
+                    className="hidden md:inline-flex items-center justify-center rounded-full border border-white/35 text-[13.5px] font-medium text-white px-4 py-2 hover:bg-white/15 transition-colors duration-150"
                   >
                     Staff login
                   </Link>
@@ -177,7 +187,7 @@ const Navbar = () => {
             <button
               onClick={() => setMobileOpen((v) => !v)}
               aria-label="Toggle menu"
-              className="md:hidden w-9 h-9 flex items-center justify-center rounded-full text-[#14171C] hover:bg-white transition-colors duration-150"
+              className="md:hidden w-9 h-9 flex items-center justify-center rounded-full text-white hover:bg-white/15 transition-colors duration-150"
             >
               <MenuIcon open={mobileOpen} />
             </button>
@@ -187,46 +197,51 @@ const Navbar = () => {
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-[#E1E3DD] bg-[#F3F4F1] px-6 py-5">
+        <div className="md:hidden border-t border-white/20 bg-[#F5590A] px-6 py-5">
           <form onSubmit={handleSearchSubmit} className="mb-5">
             <input
               type="text"
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               placeholder="Search products…"
-              className="w-full font-mono text-[13px] bg-white border border-[#E1E3DD] rounded-full px-4 py-2.5 text-[#14171C] placeholder:text-[#9CA0A6] focus:outline-none focus:border-[#2F5DFF]"
+              className="w-full font-mono text-[13px] bg-black/20 border border-white/25 rounded-full px-4 py-2.5 text-white placeholder:text-white/60 focus:outline-none focus:border-white/70"
             />
           </form>
 
           <nav className="flex flex-col gap-1 mb-5">
-            {CATEGORY_LINKS.map((cat) => (
-              <Link
-                key={cat.key}
-                to={`/shop?category=${cat.key}`}
-                onClick={() => setMobileOpen(false)}
-                className="px-3 py-2.5 rounded-lg text-[15px] font-medium text-[#14171C] hover:bg-white transition-colors duration-150"
-              >
-                {cat.label}
-              </Link>
-            ))}
+            {CATEGORY_LINKS.map((cat) => {
+              const isActive = activeCategory === cat.key;
+              return (
+                <Link
+                  key={cat.key}
+                  to={`/shop?category=${cat.key}`}
+                  onClick={() => setMobileOpen(false)}
+                  className={`px-3 py-2.5 rounded-lg text-[15px] font-medium transition-colors duration-150 ${
+                    isActive ? "bg-white text-[#F5590A]" : "text-white hover:bg-white/15"
+                  }`}
+                >
+                  {cat.label}
+                </Link>
+              );
+            })}
           </nav>
 
-          <div className="pt-4 border-t border-[#E1E3DD]">
+          <div className="pt-4 border-t border-white/20">
             {isStaff ? (
               <div className="flex flex-col gap-1">
-                <span className="px-3 py-1 font-mono text-[10.5px] uppercase tracking-wider text-[#9CA0A6]">
+                <span className="px-3 py-1 font-mono text-[10.5px] uppercase tracking-wider text-white/70">
                   Signed in as {user.username}
                 </span>
                 <Link
                   to="/admin"
                   onClick={() => setMobileOpen(false)}
-                  className="px-3 py-2.5 rounded-lg text-[15px] text-[#14171C] hover:bg-white transition-colors duration-150"
+                  className="px-3 py-2.5 rounded-lg text-[15px] text-white hover:bg-white/15 transition-colors duration-150"
                 >
                   Admin
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="text-left px-3 py-2.5 rounded-lg text-[15px] text-[#C0402E] hover:bg-white transition-colors duration-150"
+                  className="text-left px-3 py-2.5 rounded-lg text-[15px] text-white hover:bg-white/15 transition-colors duration-150"
                 >
                   Log out
                 </button>
@@ -235,7 +250,7 @@ const Navbar = () => {
               <Link
                 to="/login"
                 onClick={() => setMobileOpen(false)}
-                className="block text-center rounded-full border border-[#E1E3DD] text-[14px] font-medium text-[#14171C] px-4 py-2.5 hover:border-[#14171C] transition-colors duration-150"
+                className="block text-center rounded-full border border-white/35 text-[14px] font-medium text-white px-4 py-2.5 hover:bg-white/15 transition-colors duration-150"
               >
                 Staff login
               </Link>
