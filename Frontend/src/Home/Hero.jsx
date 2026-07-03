@@ -51,7 +51,7 @@ const Hero = () => {
     const fetchFeatured = async () => {
       setLoading(true);
       try {
-        const res = await API.get("/api/v1/products?limit=6");
+        const res = await API.get("/api/v1/products/search?limit=6");
         const list = res?.data?.data?.products || res?.data?.data || [];
         setProducts(Array.isArray(list) ? list.slice(0, 6) : []);
       } catch (err) {
