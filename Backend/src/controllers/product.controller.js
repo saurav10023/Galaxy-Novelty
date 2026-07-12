@@ -374,6 +374,98 @@ const toggleProductStatus = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, product, `Product ${product.isActive ? "activated" : "deactivated"}`));
 });
 
+// ---- GET DISTINCT BRANDS FOR A CATEGORY ----
+// Public. Powers the brand segment strip shown when a user is inside
+// a specific category (mobile / charger / powerbank / headphones).
+const getBrandsByCategory = asyncHandler(async (req, res) => {
+    const { category } = req.query;
+
+    const allowedCategories = ["mobile", "charger", "powerbank", "headphones"];
+
+    if (!category) {
+        throw new ApiError(400, "Category is required");
+    }
+
+    if (!allowedCategories.includes(category)) {
+        throw new ApiError(400, `Invalid category: ${category}`);
+    }
+
+    const brands = await Product.aggregate([
+        {
+            $match: {
+                category,
+                isActive: true,
+                brand: { $exists: true, $ne: null, $ne: "" },
+            },
+        },
+        {
+            $group: {
+                _id: "$brand",
+                productCount: { $sum: 1 },
+                // grab one representative image per brand for the UI chip/thumbnail
+                sampleImage: { $first: "$images" },
+            },
+        },
+        { $sort: { productCount: -1 } },
+        {
+            $project: {
+                _id: 0,
+                brand: "$_id",
+                productCount: 1,
+                sampleImage: { $arrayElemAt: ["$sampleImage.url", 0] },
+            },
+        },
+    ]);
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, brands, "Brands fetched successfully"));
+});
+
+// ---- GET PRODUCTS BY CATEGORY + BRAND ----
+// Public. Called when user taps a brand chip inside a category screen.
+// Reuses the same pagination + sanitization pattern as getAllProducts.
+const getProductsByBrand = asyncHandler(async (req, res) => {
+    const { category, brand } = req.query;
+
+    if (!category || !brand) {
+        throw new ApiError(400, "category and brand are required");
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const isAdmin = req.user?.role === "admin";
+
+    const filter = {
+        category,
+        brand,
+        ...(isAdmin ? {} : { isActive: true }),
+    };
+
+    const [products, total] = await Promise.all([
+        Product.find(filter).skip(skip).limit(limit).sort({ createdAt: -1 }),
+        Product.countDocuments(filter),
+    ]);
+
+    const sanitized = sanitizeProductList(products, isAdmin);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                products: sanitized,
+                pagination: {
+                    total,
+                    page,
+                    pages: Math.ceil(total / limit),
+                },
+            },
+            "Products fetched successfully"
+        )
+    );
+});
 export {
     createProduct,
     updateProduct,
@@ -383,5 +475,7 @@ export {
     getProductById,
     getProductByIdAdmin,
     getAllProducts,
-    toggleProductStatus
+    toggleProductStatus,
+    getProductsByBrand , 
+    getBrandsByCategory
 };

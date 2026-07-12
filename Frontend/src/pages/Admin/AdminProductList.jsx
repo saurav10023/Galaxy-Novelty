@@ -1,11 +1,19 @@
 // pages/admin/AdminProductsList.jsx
 //
 // Same URL-driven filtering pattern as the public ShopPage: `category`,
-// `search`, `sort`, `page`, and any category-specific filter all live in
-// the URL, so a filtered admin view is shareable/bookmarkable and survives
-// a refresh. The DynamicFilterSidebar + categoryFilterFields config are
-// reused as-is from the shop -- same filter fields per category, just
+// `search`, `sort`, `page`, `brand`, and any category-specific filter all
+// live in the URL, so a filtered admin view is shareable/bookmarkable and
+// survives a refresh. The DynamicFilterSidebar + categoryFilterFields config
+// are reused as-is from the shop -- same filter fields per category, just
 // pointed at the admin search endpoint.
+//
+// NEW: "Brands" toggle next to the category tabs. When a category is
+// selected, tapping it fetches GET /admin/brands?category=... (distinct
+// brand names + counts + a sample image, powered by search.controller.js's
+// getBrandsByCategory) and renders them as a horizontal chip strip. Tapping
+// a brand chip writes `brand` into the URL, same lane as `category`/`search`/
+// `sort` -- it survives sidebar filter changes and page navigation, and gets
+// picked up automatically by buildProductQuery on the next /admin/search call.
 //
 // Layout: >=1024px (lg) shows the classic table with the filter sidebar
 // pinned alongside it. Below that -- tablet and mobile -- every attribute
@@ -46,6 +54,17 @@ const IconFilter = (props) => (
 const IconClose = (props) => (
   <svg viewBox="0 0 20 20" fill="none" width="16" height="16" {...props}>
     <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+  </svg>
+);
+const IconChevronDown = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="13" height="13" {...props}>
+    <path d="M5 7.5l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconTag = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="15" height="15" {...props}>
+    <path d="M11 3H4v7l9 9 7-7-9-9z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    <circle cx="7.3" cy="6.7" r="1.1" fill="currentColor" />
   </svg>
 );
 
@@ -137,6 +156,56 @@ const ProductCard = ({ product: p, onEdit, onToggleStatus, onDelete }) => (
   </div>
 );
 
+// Horizontal brand chip strip. Shown/hidden by the "Brands" toggle button.
+// Pure presentational -- all data + handlers come from the parent so the
+// fetch-once-per-category caching lives in one place.
+const BrandStrip = ({ brands, loading, error, selectedBrand, onSelect }) => {
+  if (loading) {
+    return <p className="text-[13px] text-[#4B4F57] px-1 py-1">Loading brands…</p>;
+  }
+  if (error) {
+    return <p className="text-[13px] text-[#C0402E] px-1 py-1">{error}</p>;
+  }
+  if (brands.length === 0) {
+    return <p className="text-[13px] text-[#4B4F57] px-1 py-1">No brands found in this category.</p>;
+  }
+
+  return (
+    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      {brands.map((b) => {
+        const isSelected = selectedBrand === b.brand;
+        return (
+          <button
+            key={b.brand}
+            onClick={() => onSelect(b.brand)}
+            className={`shrink-0 flex flex-col items-center gap-1.5 rounded-lg border px-3 py-2 min-w-[76px] transition-colors duration-150 ${
+              isSelected
+                ? "border-[#2F5DFF] bg-[#EEF2FF]"
+                : "border-[#E1E3DD] hover:border-[#2F5DFF]"
+            }`}
+          >
+            {b.sampleImage ? (
+              <img
+                src={b.sampleImage}
+                alt={b.brand}
+                className="w-9 h-9 rounded-full object-cover border border-[#E1E3DD]"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-[#F6F7F3] border border-[#E1E3DD] flex items-center justify-center text-[#9CA0A6]">
+                <IconTag />
+              </div>
+            )}
+            <span className="text-[11.5px] font-medium text-[#14171C] truncate max-w-[70px]" title={b.brand}>
+              {b.brand}
+            </span>
+            <span className="text-[10px] font-mono text-[#9CA0A6]">{b.productCount}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 const AdminProductsList = ({ onEdit, onAddNew }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
@@ -146,10 +215,17 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
   const [actionError, setActionError] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
+  // -- brands feature state --------------------------------------------
+  const [brands, setBrands] = useState([]);
+  const [brandsLoading, setBrandsLoading] = useState(false);
+  const [brandsError, setBrandsError] = useState("");
+  const [showBrands, setShowBrands] = useState(false);
+
   const category = searchParams.get("category") || "";
   const search = searchParams.get("search") || "";
   const sort = searchParams.get("sort") || "newest";
   const page = Number(searchParams.get("page")) || 1;
+  const brand = searchParams.get("brand") || ""; // new -- same lane as category/search/sort
 
   // Local, uncommitted copy of the search box -- only written to the URL
   // (and therefore only triggers a fetch) on submit.
@@ -161,7 +237,7 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
   const filters = useMemo(() => {
     const obj = {};
     for (const [key, value] of searchParams.entries()) {
-      if (!["category", "search", "sort", "page"].includes(key)) obj[key] = value;
+      if (!["category", "search", "sort", "page", "brand"].includes(key)) obj[key] = value;
     }
     return obj;
   }, [searchParams]);
@@ -189,6 +265,46 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
     fetchProducts();
   }, [fetchProducts]);
 
+  // -- brands: fetch + reset on category change -------------------------
+  const fetchBrands = useCallback(async () => {
+    if (!category) return;
+    setBrandsLoading(true);
+    setBrandsError("");
+    try {
+      const res = await API.get("/api/v1/products/admin/brands", {
+        params: { category },
+      });
+      setBrands(res.data.data);
+    } catch (err) {
+      setBrandsError(err.response?.data?.message || "Failed to load brands.");
+    } finally {
+      setBrandsLoading(false);
+    }
+  }, [category]);
+
+  // Switching category invalidates the cached brand list -- collapse the
+  // panel and clear stale brands so a re-open always fetches fresh data
+  // for the new category.
+  useEffect(() => {
+    setShowBrands(false);
+    setBrands([]);
+  }, [category]);
+
+  const handleToggleBrands = () => {
+    const next = !showBrands;
+    setShowBrands(next);
+    if (next && brands.length === 0) fetchBrands();
+  };
+
+  const handleBrandSelect = (brandName) => {
+    updateParams({ brand: brandName });
+    setShowBrands(false);
+  };
+
+  const handleClearBrand = () => {
+    updateParams({ brand: undefined });
+  };
+
   // Lock body scroll while the mobile filter drawer is open.
   useEffect(() => {
     if (mobileFiltersOpen) {
@@ -213,7 +329,8 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
   };
 
   const handleCategoryChange = (newCategory) => {
-    // switching category invalidates every category-specific filter
+    // switching category invalidates every category-specific filter,
+    // and the previously selected brand (brands don't cross categories)
     const next = new URLSearchParams();
     if (newCategory) next.set("category", newCategory);
     if (search) next.set("search", search);
@@ -226,6 +343,7 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
     if (category) next.set("category", category);
     if (search) next.set("search", search);
     if (sort !== "newest") next.set("sort", sort);
+    if (brand) next.set("brand", brand); // preserve brand across sidebar filter changes
     Object.entries(newFilters).forEach(([key, value]) => {
       if (value !== undefined && value !== "") next.set(key, value);
     });
@@ -274,6 +392,7 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
           </h1>
           <p className="text-[13.5px] text-[#4B4F57] mt-1">
             {search ? `Results for "${search}" — ` : activeCategory ? `${activeCategory.label} — ` : ""}
+            {brand ? `${brand} — ` : ""}
             {pagination.total} product{pagination.total === 1 ? "" : "s"}
           </p>
         </div>
@@ -307,6 +426,52 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
           </button>
         ))}
       </div>
+
+      {/* Brands toggle + chip strip -- only when a specific category is active */}
+      {category && (
+        <div className="mb-5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleToggleBrands}
+              aria-expanded={showBrands}
+              className={`inline-flex items-center gap-1.5 rounded-full border text-[13px] font-medium px-3.5 py-2 transition-colors duration-150 ${
+                showBrands
+                  ? "border-[#2F5DFF] text-[#2F5DFF] bg-[#EEF2FF]"
+                  : "border-[#E1E3DD] text-[#14171C] hover:border-[#2F5DFF]"
+              }`}
+            >
+              <IconTag />
+              Brands
+              <IconChevronDown className={`transition-transform duration-150 ${showBrands ? "rotate-180" : ""}`} />
+            </button>
+
+            {brand && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#14171C] text-white text-[12.5px] font-medium pl-3 pr-1.5 py-1.5">
+                {brand}
+                <button
+                  onClick={handleClearBrand}
+                  aria-label="Clear brand filter"
+                  className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center"
+                >
+                  <IconClose width="10" height="10" />
+                </button>
+              </span>
+            )}
+          </div>
+
+          {showBrands && (
+            <div className="mt-3 border border-[#E1E3DD] rounded-xl bg-white p-3">
+              <BrandStrip
+                brands={brands}
+                loading={brandsLoading}
+                error={brandsError}
+                selectedBrand={brand}
+                onSelect={handleBrandSelect}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Search + sort + (mobile) filters trigger */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">

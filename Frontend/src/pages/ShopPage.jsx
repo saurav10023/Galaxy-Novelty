@@ -11,6 +11,14 @@
 // skeleton cards shaped like real results instead of a bare "Loading…"
 // line; and the empty state offers a one-tap way to clear filters instead
 // of just reporting the dead end.
+//
+// NEW: a "Brands" segment strip under the category tabs. Selecting a
+// category fetches GET /api/v1/products/brands?category=... (distinct
+// brand names + counts + a sample image, powered by search.controller.js's
+// getBrandsByCategory) and shows them as tappable chips. Tapping a brand
+// writes `brand` into the URL -- same lane as `category`/`search`/`sort` --
+// so it's shareable/bookmarkable and survives filter/sort changes, and
+// buildProductQuery picks it up automatically on the next /search call.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -30,6 +38,12 @@ const IconClose = (props) => (
     <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
   </svg>
 );
+const IconTag = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="15" height="15" {...props}>
+    <path d="M11 3H4v7l9 9 7-7-9-9z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    <circle cx="7.3" cy="6.7" r="1.1" fill="currentColor" />
+  </svg>
+);
 
 const SkeletonCard = () => (
   <div className="animate-pulse">
@@ -39,6 +53,71 @@ const SkeletonCard = () => (
   </div>
 );
 
+// Skeleton chip shown while brands are loading -- shaped like the real
+// chip so the strip doesn't jump when data arrives.
+const SkeletonBrandChip = () => (
+  <div className="shrink-0 flex flex-col items-center gap-1.5 rounded-lg border border-[#E1E3DD] px-3 py-2 min-w-[76px] animate-pulse">
+    <div className="w-9 h-9 rounded-full bg-[#F1F1EE]" />
+    <div className="h-2.5 w-10 bg-[#F1F1EE] rounded" />
+  </div>
+);
+
+// Horizontal, tappable brand segment strip. Pure presentational --
+// data + handlers come from the parent.
+const BrandStrip = ({ brands, loading, error, selectedBrand, onSelect }) => {
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <SkeletonBrandChip key={i} />
+        ))}
+      </div>
+    );
+  }
+  if (error) {
+    return <p className="text-[13px] text-[#C0402E] px-1 py-1">{error}</p>;
+  }
+  if (brands.length === 0) {
+    return <p className="text-[13px] text-[#9CA0A6] px-1 py-1">No brands available in this category yet.</p>;
+  }
+
+  return (
+    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      {brands.map((b) => {
+        const isSelected = selectedBrand === b.brand;
+        return (
+          <button
+            key={b.brand}
+            onClick={() => onSelect(isSelected ? "" : b.brand)}
+            aria-pressed={isSelected}
+            className={`shrink-0 flex flex-col items-center gap-1.5 rounded-lg border px-3 py-2 min-w-[76px] transition-colors duration-150 ${
+              isSelected
+                ? "border-[#2F5DFF] bg-[#EEF2FF]"
+                : "border-[#E1E3DD] bg-white hover:border-[#2F5DFF]"
+            }`}
+          >
+            {b.sampleImage ? (
+              <img
+                src={b.sampleImage}
+                alt={b.brand}
+                className="w-9 h-9 rounded-full object-cover border border-[#E1E3DD]"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-[#F6F7F3] border border-[#E1E3DD] flex items-center justify-center text-[#9CA0A6]">
+                <IconTag />
+              </div>
+            )}
+            <span className="text-[11.5px] font-medium text-[#14171C] truncate max-w-[70px]" title={b.brand}>
+              {b.brand}
+            </span>
+            <span className="text-[10px] font-mono text-[#9CA0A6]">{b.productCount}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 const ShopPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
@@ -47,22 +126,28 @@ const ShopPage = () => {
   const [error, setError] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
+  // -- brands feature state --------------------------------------------
+  const [brands, setBrands] = useState([]);
+  const [brandsLoading, setBrandsLoading] = useState(false);
+  const [brandsError, setBrandsError] = useState("");
+
   const category = searchParams.get("category") || "";
   const search = searchParams.get("search") || "";
   const sort = searchParams.get("sort") || "newest";
   const page = Number(searchParams.get("page")) || 1;
+  const brand = searchParams.get("brand") || ""; // new -- same lane as category/search/sort
 
-  // Everything in the URL except the pagination/sort/search params that get
-  // their own dedicated controls -- this is what the sidebar edits.
+  // Everything in the URL except the pagination/sort/search/brand params
+  // that get their own dedicated controls -- this is what the sidebar edits.
   const filters = useMemo(() => {
     const obj = {};
     for (const [key, value] of searchParams.entries()) {
-      if (!["category", "search", "sort", "page"].includes(key)) obj[key] = value;
+      if (!["category", "search", "sort", "page", "brand"].includes(key)) obj[key] = value;
     }
     return obj;
   }, [searchParams]);
 
-  const activeFilterCount = Object.keys(filters).length;
+  const activeFilterCount = Object.keys(filters).length + (brand ? 1 : 0);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -85,6 +170,33 @@ const ShopPage = () => {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  // -- brands: fetch fresh whenever category changes --------------------
+  // Unlike the admin panel (click-to-expand), the shop shows the strip
+  // by default whenever a category is selected, so it fetches eagerly.
+  const fetchBrands = useCallback(async () => {
+    if (!category) {
+      setBrands([]);
+      return;
+    }
+    setBrandsLoading(true);
+    setBrandsError("");
+    try {
+      const res = await API.get("/api/v1/products/brands", {
+        params: { category },
+        withCredentials: true,
+      });
+      setBrands(res.data.data);
+    } catch (err) {
+      setBrandsError(err.response?.data?.message || "Failed to load brands.");
+    } finally {
+      setBrandsLoading(false);
+    }
+  }, [category]);
+
+  useEffect(() => {
+    fetchBrands();
+  }, [fetchBrands]);
 
   // Lock body scroll while the mobile filter drawer is open.
   useEffect(() => {
@@ -110,7 +222,8 @@ const ShopPage = () => {
   };
 
   const handleCategoryChange = (newCategory) => {
-    // switching category invalidates every category-specific filter
+    // switching category invalidates every category-specific filter,
+    // and the previously selected brand (brands don't cross categories)
     const next = new URLSearchParams();
     if (newCategory) next.set("category", newCategory);
     if (search) next.set("search", search);
@@ -124,10 +237,15 @@ const ShopPage = () => {
     if (category) next.set("category", category);
     if (search) next.set("search", search);
     if (sort !== "newest") next.set("sort", sort);
+    if (brand) next.set("brand", brand); // preserve brand across sidebar filter changes
     Object.entries(newFilters).forEach(([key, value]) => {
       if (value !== undefined && value !== "") next.set(key, value);
     });
     setSearchParams(next);
+  };
+
+  const handleBrandSelect = (brandName) => {
+    updateParams({ brand: brandName });
   };
 
   const clearFilters = () => {
@@ -145,6 +263,7 @@ const ShopPage = () => {
       <div className="mb-5 md:mb-6">
         <h1 className="font-display text-[20px] sm:text-[24px] font-semibold text-[#14171C] tracking-tight">
           {search ? `Results for "${search}"` : activeCategory ? activeCategory.label : "All products"}
+          {brand ? ` · ${brand}` : ""}
         </h1>
         <p className="text-[13.5px] text-[#4B4F57] mt-1">
           {loading ? "Searching…" : `${pagination.total} product${pagination.total === 1 ? "" : "s"}`}
@@ -177,6 +296,22 @@ const ShopPage = () => {
             </button>
           ))}
         </div>
+
+        {/* Brand segment strip -- only when a specific category is selected.
+            Sits inside the sticky bar, right under the category tabs, so it
+            reads as "brands within this category" rather than a separate
+            filter. */}
+        {category && (
+          <div className="pb-3">
+            <BrandStrip
+              brands={brands}
+              loading={brandsLoading}
+              error={brandsError}
+              selectedBrand={brand}
+              onSelect={handleBrandSelect}
+            />
+          </div>
+        )}
 
         <div className="flex items-center justify-between gap-2 pb-3">
           {category ? (
@@ -251,10 +386,22 @@ const ShopPage = () => {
         {/* Results */}
         <div className="flex-1 min-w-0">
           {activeFilterCount > 0 && (
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
               <span className="text-[12.5px] text-[#9CA0A6]">
                 {activeFilterCount} filter{activeFilterCount === 1 ? "" : "s"} applied
               </span>
+              {brand && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#14171C] text-white text-[12px] font-medium pl-3 pr-1.5 py-1">
+                  {brand}
+                  <button
+                    onClick={() => handleBrandSelect("")}
+                    aria-label="Clear brand filter"
+                    className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center"
+                  >
+                    <IconClose width="9" height="9" />
+                  </button>
+                </span>
+              )}
               <button
                 onClick={clearFilters}
                 className="text-[12.5px] font-medium text-[#2F5DFF] hover:underline"

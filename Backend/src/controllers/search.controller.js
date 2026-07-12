@@ -81,4 +81,48 @@ const getAvailableFilters = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, filters, "Available filters fetched"));
 });
 
-export { searchProducts, getAvailableFilters };
+// GET /api/v1/products/brands?category=mobile
+// Returns distinct brands present in a category, with counts + a sample
+// image for the chip strip. Reuses the same isActive rule as searchProducts
+// (buildProductQuery would do this too, but we only need brand+isActive here).
+const getBrandsByCategory = asyncHandler(async (req, res) => {
+    const { category } = req.query;
+
+    if (!category) {
+        throw new ApiError(400, "Category is required");
+    }
+
+    const isAdmin = req.user?.role === "admin";
+
+    const matchStage = {
+        category,
+        brand: { $exists: true, $ne: null, $ne: "" },
+    };
+    if (!isAdmin) matchStage.isActive = true;
+
+    const brands = await Product.aggregate([
+        { $match: matchStage },
+        {
+            $group: {
+                _id: "$brand",
+                productCount: { $sum: 1 },
+                sampleImage: { $first: "$images" },
+            },
+        },
+        { $sort: { productCount: -1 } },
+        {
+            $project: {
+                _id: 0,
+                brand: "$_id",
+                productCount: 1,
+                sampleImage: { $arrayElemAt: ["$sampleImage.url", 0] },
+            },
+        },
+    ]);
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, brands, "Brands fetched successfully"));
+});
+
+export { searchProducts, getAvailableFilters, getBrandsByCategory };
