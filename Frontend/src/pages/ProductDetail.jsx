@@ -4,6 +4,11 @@
 // component that expects `product` as a prop, used inside the shop grid),
 // this page owns the fetch: it reads `id` from the URL, calls
 // GET /api/v1/products/:id, and handles loading/error/not-found states.
+//
+// NOTE: this is a catalog page, not a checkout flow -- there is no cart,
+// no shipping/delivery messaging, and no buy button. The only "action"
+// info shown is that warranty service is handled in person at an
+// authorized service centre.
 
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
@@ -59,6 +64,82 @@ const formatValue = (val) => {
   return val;
 };
 
+const formatINR = (n) => (n || n === 0 ? `\u20B9${n.toLocaleString("en-IN")}` : "");
+
+/* ---------------------------------------------------------------------- */
+/* Icons                                                                   */
+/* ---------------------------------------------------------------------- */
+
+const IconArrowLeft = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="16" height="16" {...props}>
+    <path d="M12 5 6 10l6 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconChevronLeft = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="16" height="16" {...props}>
+    <path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconChevronRight = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="16" height="16" {...props}>
+    <path d="M7.5 4.5 13 10l-5.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconImageOff = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="22" height="22" {...props}>
+    <path d="M3 4h11l3 3v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+    <path d="M6.5 9.5A1.5 1.5 0 1 0 6.5 6.5a1.5 1.5 0 0 0 0 3ZM3 14.5l4-4 3 3 3-3.5 4 4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconShield = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="18" height="18" {...props}>
+    <path
+      d="M10 2.5 16 4.8v4.3c0 3.9-2.5 6.9-6 8.4-3.5-1.5-6-4.5-6-8.4V4.8L10 2.5Z"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinejoin="round"
+    />
+    <path d="M7.3 9.8 9.2 11.7 12.8 8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/* ---------------------------------------------------------------------- */
+/* Skeleton (shimmer, matching ShopPage's animation)                      */
+/* ---------------------------------------------------------------------- */
+
+const Shimmer = ({ className = "" }) => (
+  <div className={`relative overflow-hidden bg-[#F1F1EE] ${className}`}>
+    <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+  </div>
+);
+
+const DetailSkeleton = () => (
+  <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-8">
+    <Shimmer className="h-4 w-28 rounded mb-6" />
+    <div className="grid grid-cols-1 md:grid-cols-[80px_1fr_1fr] gap-4 md:gap-8">
+      <div className="hidden md:flex flex-col gap-3 order-1">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Shimmer key={i} className="w-[64px] h-[64px] rounded-xl" />
+        ))}
+      </div>
+      <div className="order-2 md:order-2">
+        <Shimmer className="aspect-[4/3] rounded-2xl w-full" />
+      </div>
+      <div className="order-3 md:order-3">
+        <Shimmer className="h-3 w-24 rounded mb-3" />
+        <Shimmer className="h-6 w-3/4 rounded mb-3" />
+        <Shimmer className="h-8 w-1/3 rounded mb-5" />
+        <Shimmer className="h-16 w-full rounded mb-4" />
+        <Shimmer className="h-14 w-full rounded-xl" />
+      </div>
+    </div>
+  </div>
+);
+
+/* ---------------------------------------------------------------------- */
+/* Page                                                                    */
+/* ---------------------------------------------------------------------- */
+
 const ProductDetail = () => {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
@@ -94,21 +175,22 @@ const ProductDetail = () => {
     };
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="max-w-5xl mx-auto px-6 md:px-10 py-16">
-        <p className="text-[13.5px] text-[#4B4F57]">Loading…</p>
-      </div>
-    );
-  }
+  if (loading) return <DetailSkeleton />;
 
   if (error || !product) {
     return (
-      <div className="max-w-5xl mx-auto px-6 md:px-10 py-16 text-center">
+      <div className="max-w-5xl mx-auto px-6 md:px-10 py-20 text-center">
+        <div className="w-14 h-14 rounded-full bg-[#F6F7F3] border border-[#E5E7EA] flex items-center justify-center mx-auto mb-4 text-[#9CA0A6]">
+          <IconImageOff />
+        </div>
         <p className="text-[15px] text-[#14171C] font-medium mb-2">
           {error || "Product not found."}
         </p>
-        <Link to="/shop" className="text-[13.5px] font-medium text-[#2F5DFF] hover:underline">
+        <Link
+          to="/shop"
+          className="inline-flex items-center gap-1.5 mt-2 text-[13.5px] font-medium text-[#2F5DFF] hover:underline"
+        >
+          <IconArrowLeft />
           Back to shop
         </Link>
       </div>
@@ -117,35 +199,115 @@ const ProductDetail = () => {
 
   const specFields = SPEC_FIELDS_BY_CATEGORY[product.category] || [];
   const images = product.images || [];
+  const inStock = product.stock > 0;
+  const lowStock = inStock && product.stock <= 3;
+
+  const visibleSpecs = specFields.filter(([key]) => {
+    const val = product[key];
+    return val !== undefined && val !== null && val !== "";
+  });
 
   return (
-    <div className="max-w-5xl mx-auto px-6 md:px-10 py-8">
-      <Link to="/shop" className="text-[13px] font-medium text-[#4B4F57] hover:text-[#14171C]">
-        ← Back to shop
-      </Link>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-10 py-4 md:py-8">
+      <style>{`
+        @keyframes shimmer { 100% { transform: translateX(100%); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .fade-in { animation: fadeIn 0.25s ease both; }
+      `}</style>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-5">
-        {/* Images */}
-        <div>
-          <div className="aspect-square rounded-xl bg-[#F6F7F3] border border-[#E1E3DD] overflow-hidden flex items-center justify-center">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1.5 mb-4 md:mb-6 text-[13px]">
+        <Link to="/shop" className="text-[#4B4F57] hover:text-[#14171C] transition-colors">
+          Shop
+        </Link>
+        {product.category && (
+          <>
+            <span className="text-[#D8DADD]">/</span>
+            <Link
+              to={`/shop?category=${product.category}`}
+              className="text-[#4B4F57] hover:text-[#14171C] transition-colors capitalize"
+            >
+              {product.category}
+            </Link>
+          </>
+        )}
+        <span className="text-[#D8DADD]">/</span>
+        <span className="text-[#9CA0A6] truncate max-w-[160px] sm:max-w-xs">{product.name}</span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-[64px_1fr] lg:grid-cols-[64px_1.05fr_0.9fr] gap-4 md:gap-5 lg:gap-8">
+        {/* Thumbnail rail — desktop only, sits left of the main image */}
+        {images.length > 1 && (
+          <div className="hidden md:flex flex-col gap-2.5 order-1">
+            {images.map((img, i) => (
+              <button
+                key={img.publicId || i}
+                onClick={() => setActiveImage(i)}
+                aria-label={`View image ${i + 1}`}
+                className={`w-[60px] h-[60px] rounded-lg overflow-hidden border-2 transition-all duration-150 ${
+                  i === activeImage
+                    ? "border-[#2F5DFF] shadow-[0_0_0_3px_rgba(47,93,255,0.12)]"
+                    : "border-[#E5E7EA] opacity-70 hover:opacity-100 hover:border-[#D8DADD]"
+                }`}
+              >
+                <img src={img.url} alt="" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Main gallery */}
+        <div className="order-2 lg:order-2">
+          <div className="relative aspect-[4/3] rounded-2xl bg-[#F6F7F3] border border-[#E5E7EA] overflow-hidden">
             {images[activeImage]?.url ? (
               <img
+                key={activeImage}
                 src={images[activeImage].url}
                 alt={product.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover fade-in"
               />
             ) : (
-              <span className="font-mono text-[11px] text-[#9CA0A6] uppercase">No image</span>
+              <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-[#9CA0A6]">
+                <IconImageOff />
+                <span className="text-[12px]">No image available</span>
+              </div>
+            )}
+
+            {!product.isActive && (
+              <span className="absolute top-3 left-3 rounded-full bg-black/70 backdrop-blur text-white text-[11px] font-medium px-2.5 py-1">
+                Currently unavailable
+              </span>
+            )}
+
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={() => setActiveImage((p) => (p === 0 ? images.length - 1 : p - 1))}
+                  aria-label="Previous image"
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 border border-[#E5E7EA] flex items-center justify-center text-[#14171C] hover:bg-white shadow-sm"
+                >
+                  <IconChevronLeft />
+                </button>
+                <button
+                  onClick={() => setActiveImage((p) => (p === images.length - 1 ? 0 : p + 1))}
+                  aria-label="Next image"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 border border-[#E5E7EA] flex items-center justify-center text-[#14171C] hover:bg-white shadow-sm"
+                >
+                  <IconChevronRight />
+                </button>
+              </>
             )}
           </div>
+
+          {/* Thumbnail strip — mobile only, scrolls under the main image */}
           {images.length > 1 && (
-            <div className="flex gap-2 mt-3">
+            <div className="flex md:hidden items-center gap-2 mt-2.5 overflow-x-auto pb-1">
               {images.map((img, i) => (
                 <button
                   key={img.publicId || i}
                   onClick={() => setActiveImage(i)}
-                  className={`w-16 h-16 rounded-lg overflow-hidden border ${
-                    i === activeImage ? "border-[#2F5DFF]" : "border-[#E1E3DD]"
+                  className={`shrink-0 w-[54px] h-[54px] rounded-lg overflow-hidden border-2 transition-colors ${
+                    i === activeImage ? "border-[#2F5DFF]" : "border-[#E5E7EA]"
                   }`}
                 >
                   <img src={img.url} alt="" className="w-full h-full object-cover" />
@@ -155,60 +317,102 @@ const ProductDetail = () => {
           )}
         </div>
 
-        {/* Info */}
-        <div>
-          <p className="font-mono text-[12px] text-[#9CA0A6] uppercase tracking-wide mb-1">
-            {product.brand}
-          </p>
-          <h1 className="font-display text-[24px] font-semibold text-[#14171C] tracking-tight mb-2">
+        {/* Info panel */}
+        <div className="order-3 lg:order-3 lg:sticky lg:top-6 lg:self-start mt-1 md:mt-0">
+          {product.brand && (
+            <p className="text-[12px] font-medium text-[#9CA0A6] uppercase tracking-wide mb-1">
+              {product.brand}
+            </p>
+          )}
+          <h1 className="font-display text-[19px] sm:text-[23px] font-semibold text-[#14171C] tracking-tight leading-snug">
             {product.name}
           </h1>
 
-          {!product.isActive && (
-            <span className="inline-block mb-3 rounded-full bg-[#F1F1EE] text-[#4B4F57] text-[11px] font-medium px-2.5 py-1">
-              Currently unavailable
+          <div className="flex items-center gap-2.5 mt-2.5 flex-wrap">
+            <p className="text-[24px] font-semibold text-[#FF5630]">
+              {formatINR(product.pricing?.sellingPrice)}
+            </p>
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium ${
+                inStock
+                  ? lowStock
+                    ? "bg-[#FAEEDA] text-[#854F0B]"
+                    : "bg-[#EAF3DE] text-[#3B6D11]"
+                  : "bg-[#FBEAE7] text-[#C0402E]"
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  inStock ? (lowStock ? "bg-[#EF9F27]" : "bg-[#639922]") : "bg-[#C0402E]"
+                }`}
+              />
+              {inStock
+                ? lowStock
+                  ? `Only ${product.stock} left`
+                  : "In stock"
+                : "Out of stock"}
             </span>
-          )}
-
-          <p className="font-mono text-[26px] font-semibold text-[#14171C] mb-1">
-            ₹{product.pricing?.sellingPrice?.toLocaleString("en-IN")}
-          </p>
+          </div>
 
           {/* Admin-only pricing -- only renders if the backend actually sent
               these fields, i.e. the requester was authenticated as admin */}
           {product.pricing?.purchasePrice !== undefined && (
-            <div className="font-mono text-[12.5px] text-[#9CA0A6] mb-4 space-y-0.5">
-              <p>Purchase price: ₹{product.pricing.purchasePrice.toLocaleString("en-IN")}</p>
+            <div className="mt-3 rounded-lg bg-[#F6F7F3] border border-[#E5E7EA] px-3.5 py-2.5 text-[12.5px] text-[#4B4F57] space-y-1">
+              <p className="flex justify-between">
+                <span className="text-[#9CA0A6]">Purchase price</span>
+                <span className="font-medium text-[#14171C]">
+                  {formatINR(product.pricing.purchasePrice)}
+                </span>
+              </p>
               {product.pricing?.negotiation && (
-                <p>
-                  Negotiation range: ₹{product.pricing.negotiation.minPrice?.toLocaleString("en-IN")} – ₹
-                  {product.pricing.negotiation.maxPrice?.toLocaleString("en-IN")}
+                <p className="flex justify-between">
+                  <span className="text-[#9CA0A6]">Negotiation range</span>
+                  <span className="font-medium text-[#14171C]">
+                    {formatINR(product.pricing.negotiation.minPrice)} – {formatINR(product.pricing.negotiation.maxPrice)}
+                  </span>
                 </p>
               )}
             </div>
           )}
 
-          <p className="text-[13.5px] text-[#4B4F57] mb-2">
-            {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
-          </p>
+          {product.description && (
+            <p className="text-[13px] leading-relaxed text-[#4B4F57] mt-3.5 line-clamp-4 md:line-clamp-none">
+              {product.description}
+            </p>
+          )}
 
-          {/* Spec table */}
-          {specFields.length > 0 && (
-            <div className="mt-6 border-t border-[#E1E3DD] pt-5">
-              <h3 className="font-mono text-[10.5px] uppercase tracking-wider text-[#9CA0A6] mb-3">
+          {/* Warranty & service — this is a catalog, not a storefront, so the
+              only "next step" info shown is where warranty work happens */}
+          <div className="flex items-start gap-2.5 mt-4 rounded-xl border border-[#E5E7EA] px-3.5 py-3 bg-[#F6F7F3]">
+            <span className="text-[#639922] mt-0.5 shrink-0">
+              <IconShield />
+            </span>
+            <div>
+              <p className="text-[12.5px] font-medium text-[#14171C]">Warranty service</p>
+              <p className="text-[11.5px] text-[#9CA0A6] mt-0.5 leading-snug">
+                Warranty support is handled only at our authorized service centre.
+              </p>
+            </div>
+          </div>
+
+          {/* Spec card */}
+          {visibleSpecs.length > 0 && (
+            <div className="mt-4 rounded-xl border border-[#E5E7EA] px-4 py-1">
+              <h3 className="text-[10px] font-mono font-semibold uppercase tracking-[0.08em] text-[#9CA0A6] pt-3 pb-1">
                 Specifications
               </h3>
-              <dl className="grid grid-cols-2 gap-y-2.5 gap-x-4">
-                {specFields.map(([key, label]) => {
-                  const val = product[key];
-                  if (val === undefined || val === null || val === "") return null;
-                  return (
-                    <div key={key} className="contents">
-                      <dt className="text-[13px] text-[#9CA0A6]">{label}</dt>
-                      <dd className="text-[13px] text-[#14171C] font-medium">{formatValue(val)}</dd>
-                    </div>
-                  );
-                })}
+              <dl>
+                {visibleSpecs.map(([key, label]) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between py-2 border-t border-[#F1F1EE]"
+                  >
+                    <dt className="text-[12.5px] text-[#9CA0A6]">{label}</dt>
+                    <dd className="text-[12.5px] font-medium text-[#14171C] text-right">
+                      {formatValue(product[key])}
+                    </dd>
+                  </div>
+                ))}
               </dl>
             </div>
           )}

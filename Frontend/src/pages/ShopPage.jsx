@@ -1,24 +1,16 @@
 // src/pages/ShopPage.jsx
 //
-// One page, four category experiences. `category` lives in the URL
-// (?category=mobile) so navbar links, back/forward nav, and sharing/
-// bookmarking a filtered search all work.
+// Redesign pass on top of the previous sticky-tabs / slide-over version.
+// Everything about data flow (category/search/sort/page/brand live in the
+// URL, buildProductQuery reads filters generically) is unchanged.
 //
-// UX pass: the category tabs + sort bar are sticky so they stay reachable
-// while scrolling a long result grid; the filter sidebar moves into a
-// slide-over drawer below `lg` instead of stacking above the grid and
-// pushing every product down a screen's worth on mobile; loading shows
-// skeleton cards shaped like real results instead of a bare "Loading…"
-// line; and the empty state offers a one-tap way to clear filters instead
-// of just reporting the dead end.
-//
-// NEW: a "Brands" segment strip under the category tabs. Selecting a
-// category fetches GET /api/v1/products/brands?category=... (distinct
-// brand names + counts + a sample image, powered by search.controller.js's
-// getBrandsByCategory) and shows them as tappable chips. Tapping a brand
-// writes `brand` into the URL -- same lane as `category`/`search`/`sort` --
-// so it's shareable/bookmarkable and survives filter/sort changes, and
-// buildProductQuery picks it up automatically on the next /search call.
+// Fixes in this pass:
+// 1. Price preset chips simplified to plain pills (no punched-hole/
+//    dashed-edge tag styling, no font-mono) — matches the rest of the UI
+//    instead of reading as a foreign component.
+// 2. Only the category tabs are sticky now. Brand strip, price strip, and
+//    the filter/sort row scroll normally with the page — previously all
+//    four rows were pinned together and ate most of the viewport.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -27,6 +19,10 @@ import DynamicFilterSidebar from "../components/filters/Dynamicfiltersidebar";
 import ProductCard from "../components/ProductCard";
 import Select from "../components/ui/Select";
 import { CATEGORIES, sortOptions } from "../config/categoryfilterfields";
+
+/* ---------------------------------------------------------------------- */
+/* Icons                                                                   */
+/* ---------------------------------------------------------------------- */
 
 const IconFilter = (props) => (
   <svg viewBox="0 0 20 20" fill="none" width="15" height="15" {...props}>
@@ -44,26 +40,89 @@ const IconTag = (props) => (
     <circle cx="7.3" cy="6.7" r="1.1" fill="currentColor" />
   </svg>
 );
+const IconChevronDown = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="14" height="14" {...props}>
+    <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
-const SkeletonCard = () => (
-  <div className="animate-pulse">
-    <div className="aspect-square rounded-xl bg-[#F1F1EE]" />
-    <div className="h-3.5 bg-[#F1F1EE] rounded mt-3 w-4/5" />
-    <div className="h-3.5 bg-[#F1F1EE] rounded mt-2 w-2/5" />
+/* ---------------------------------------------------------------------- */
+/* Price presets                                                          */
+/* ---------------------------------------------------------------------- */
+// Edit this list to move the whole ladder. Kept as flat numbers (not
+// formatted strings) so min/max travel straight into the query params.
+const PRICE_PRESETS = [
+  { label: "8k–10k", min: 8000, max: 10000 },
+  { label: "10k–12k", min: 10000, max: 12000 },
+  { label: "12k–14k", min: 12000, max: 14000 },
+  { label: "14k–16k", min: 14000, max: 16000 },
+  { label: "16k–18k", min: 16000, max: 18000 },
+  { label: "18k–20k", min: 18000, max: 20000 },
+  { label: "20k–22k", min: 20000, max: 22000 },
+  { label: "22k+", min: 22000, max: undefined },
+];
+
+const formatINR = (n) => `\u20B9${n.toLocaleString("en-IN")}`;
+
+// A plain pill — coral fill/border when selected, otherwise neutral.
+// Same font as the rest of the UI; no separate "price tag" visual gimmick.
+const PricePresetChip = ({ preset, isSelected, onSelect }) => (
+  <button
+    onClick={() => onSelect(isSelected ? null : preset)}
+    aria-pressed={isSelected}
+    className={`shrink-0 px-3.5 py-1.5 rounded-full border text-[13px] font-medium transition-colors duration-150 whitespace-nowrap ${
+      isSelected
+        ? "bg-[#FF5630] border-[#FF5630] text-white"
+        : "bg-white border-[#E5E7EA] text-[#4B4F57] hover:border-[#FF5630]/60 hover:text-[#14171C]"
+    }`}
+  >
+    {preset.label}
+  </button>
+);
+
+const PricePresetStrip = ({ selectedPreset, onSelect }) => (
+  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+    {PRICE_PRESETS.map((p) => {
+      const isSelected =
+        selectedPreset && selectedPreset.min === p.min && selectedPreset.max === p.max;
+      return <PricePresetChip key={p.label} preset={p} isSelected={isSelected} onSelect={onSelect} />;
+    })}
   </div>
 );
 
-// Skeleton chip shown while brands are loading -- shaped like the real
-// chip so the strip doesn't jump when data arrives.
+/* ---------------------------------------------------------------------- */
+/* Skeletons                                                              */
+/* ---------------------------------------------------------------------- */
+
+const SkeletonCard = () => (
+  <div>
+    <div className="aspect-square rounded-2xl bg-[#F1F1EE] relative overflow-hidden">
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+    </div>
+    <div className="h-3.5 bg-[#F1F1EE] rounded mt-3 w-4/5 relative overflow-hidden">
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+    </div>
+    <div className="h-3.5 bg-[#F1F1EE] rounded mt-2 w-2/5 relative overflow-hidden">
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+    </div>
+  </div>
+);
+
 const SkeletonBrandChip = () => (
-  <div className="shrink-0 flex flex-col items-center gap-1.5 rounded-lg border border-[#E1E3DD] px-3 py-2 min-w-[76px] animate-pulse">
+  <div className="shrink-0 flex flex-col items-center gap-1.5 rounded-xl border border-[#E5E7EA] px-3 py-2 min-w-[76px] animate-pulse">
     <div className="w-9 h-9 rounded-full bg-[#F1F1EE]" />
     <div className="h-2.5 w-10 bg-[#F1F1EE] rounded" />
   </div>
 );
 
-// Horizontal, tappable brand segment strip. Pure presentational --
-// data + handlers come from the parent.
+const SkeletonPriceChip = () => (
+  <div className="shrink-0 h-[30px] w-[80px] rounded-full border border-[#E5E7EA] bg-[#F6F7F3] animate-pulse" />
+);
+
+/* ---------------------------------------------------------------------- */
+/* Brand strip                                                            */
+/* ---------------------------------------------------------------------- */
+
 const BrandStrip = ({ brands, loading, error, selectedBrand, onSelect }) => {
   if (loading) {
     return (
@@ -90,20 +149,20 @@ const BrandStrip = ({ brands, loading, error, selectedBrand, onSelect }) => {
             key={b.brand}
             onClick={() => onSelect(isSelected ? "" : b.brand)}
             aria-pressed={isSelected}
-            className={`shrink-0 flex flex-col items-center gap-1.5 rounded-lg border px-3 py-2 min-w-[76px] transition-colors duration-150 ${
+            className={`shrink-0 flex flex-col items-center gap-1.5 rounded-xl border px-3 py-2 min-w-[76px] transition-all duration-150 ${
               isSelected
-                ? "border-[#2F5DFF] bg-[#EEF2FF]"
-                : "border-[#E1E3DD] bg-white hover:border-[#2F5DFF]"
+                ? "border-[#2F5DFF] bg-[#EEF2FF] ring-1 ring-[#2F5DFF]/30"
+                : "border-[#E5E7EA] bg-white hover:border-[#2F5DFF]/50"
             }`}
           >
             {b.sampleImage ? (
               <img
                 src={b.sampleImage}
                 alt={b.brand}
-                className="w-9 h-9 rounded-full object-cover border border-[#E1E3DD]"
+                className="w-9 h-9 rounded-full object-cover border border-[#E5E7EA]"
               />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-[#F6F7F3] border border-[#E1E3DD] flex items-center justify-center text-[#9CA0A6]">
+              <div className="w-9 h-9 rounded-full bg-[#F6F7F3] border border-[#E5E7EA] flex items-center justify-center text-[#9CA0A6]">
                 <IconTag />
               </div>
             )}
@@ -118,6 +177,20 @@ const BrandStrip = ({ brands, loading, error, selectedBrand, onSelect }) => {
   );
 };
 
+/* ---------------------------------------------------------------------- */
+/* Section label — small caps eyebrow used above each sub-row             */
+/* ---------------------------------------------------------------------- */
+
+const SectionLabel = ({ children }) => (
+  <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.08em] text-[#9CA0A6] px-1">
+    {children}
+  </span>
+);
+
+/* ---------------------------------------------------------------------- */
+/* Page                                                                    */
+/* ---------------------------------------------------------------------- */
+
 const ShopPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
@@ -125,8 +198,8 @@ const ShopPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [sheetClosing, setSheetClosing] = useState(false);
 
-  // -- brands feature state --------------------------------------------
   const [brands, setBrands] = useState([]);
   const [brandsLoading, setBrandsLoading] = useState(false);
   const [brandsError, setBrandsError] = useState("");
@@ -135,19 +208,32 @@ const ShopPage = () => {
   const search = searchParams.get("search") || "";
   const sort = searchParams.get("sort") || "newest";
   const page = Number(searchParams.get("page")) || 1;
-  const brand = searchParams.get("brand") || ""; // new -- same lane as category/search/sort
+  const brand = searchParams.get("brand") || "";
+  const minPrice = searchParams.get("minPrice");
+  const maxPrice = searchParams.get("maxPrice");
 
-  // Everything in the URL except the pagination/sort/search/brand params
-  // that get their own dedicated controls -- this is what the sidebar edits.
+  const selectedPreset = useMemo(() => {
+    if (!minPrice) return null;
+    return (
+      PRICE_PRESETS.find(
+        (p) => String(p.min) === minPrice && String(p.max || "") === (maxPrice || "")
+      ) || null
+    );
+  }, [minPrice, maxPrice]);
+
+  // Everything in the URL except params with their own dedicated control.
   const filters = useMemo(() => {
     const obj = {};
     for (const [key, value] of searchParams.entries()) {
-      if (!["category", "search", "sort", "page", "brand"].includes(key)) obj[key] = value;
+      if (!["category", "search", "sort", "page", "brand", "minPrice", "maxPrice"].includes(key)) {
+        obj[key] = value;
+      }
     }
     return obj;
   }, [searchParams]);
 
-  const activeFilterCount = Object.keys(filters).length + (brand ? 1 : 0);
+  const activeFilterCount =
+    Object.keys(filters).length + (brand ? 1 : 0) + (minPrice ? 1 : 0);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -171,9 +257,6 @@ const ShopPage = () => {
     fetchProducts();
   }, [fetchProducts]);
 
-  // -- brands: fetch fresh whenever category changes --------------------
-  // Unlike the admin panel (click-to-expand), the shop shows the strip
-  // by default whenever a category is selected, so it fetches eagerly.
   const fetchBrands = useCallback(async () => {
     if (!category) {
       setBrands([]);
@@ -198,7 +281,6 @@ const ShopPage = () => {
     fetchBrands();
   }, [fetchBrands]);
 
-  // Lock body scroll while the mobile filter drawer is open.
   useEffect(() => {
     if (mobileFiltersOpen) {
       document.body.style.overflow = "hidden";
@@ -207,6 +289,14 @@ const ShopPage = () => {
       };
     }
   }, [mobileFiltersOpen]);
+
+  const closeSheet = () => {
+    setSheetClosing(true);
+    setTimeout(() => {
+      setMobileFiltersOpen(false);
+      setSheetClosing(false);
+    }, 180);
+  };
 
   const updateParams = (updates, { resetPage = true } = {}) => {
     const next = new URLSearchParams(searchParams);
@@ -222,8 +312,6 @@ const ShopPage = () => {
   };
 
   const handleCategoryChange = (newCategory) => {
-    // switching category invalidates every category-specific filter,
-    // and the previously selected brand (brands don't cross categories)
     const next = new URLSearchParams();
     if (newCategory) next.set("category", newCategory);
     if (search) next.set("search", search);
@@ -237,7 +325,9 @@ const ShopPage = () => {
     if (category) next.set("category", category);
     if (search) next.set("search", search);
     if (sort !== "newest") next.set("sort", sort);
-    if (brand) next.set("brand", brand); // preserve brand across sidebar filter changes
+    if (brand) next.set("brand", brand);
+    if (minPrice) next.set("minPrice", minPrice);
+    if (maxPrice) next.set("maxPrice", maxPrice);
     Object.entries(newFilters).forEach(([key, value]) => {
       if (value !== undefined && value !== "") next.set(key, value);
     });
@@ -246,6 +336,14 @@ const ShopPage = () => {
 
   const handleBrandSelect = (brandName) => {
     updateParams({ brand: brandName });
+  };
+
+  const handlePricePresetSelect = (preset) => {
+    if (!preset) {
+      updateParams({ minPrice: null, maxPrice: null });
+      return;
+    }
+    updateParams({ minPrice: String(preset.min), maxPrice: preset.max ? String(preset.max) : null });
   };
 
   const clearFilters = () => {
@@ -257,24 +355,36 @@ const ShopPage = () => {
 
   const activeCategory = CATEGORIES.find((c) => c.key === category);
 
+  const priceChipLabel = selectedPreset
+    ? selectedPreset.max
+      ? `${formatINR(selectedPreset.min)}\u2013${formatINR(selectedPreset.max)}`
+      : `${formatINR(selectedPreset.min)}+`
+    : null;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-8">
+      <style>{`
+        @keyframes shimmer { 100% { transform: translateX(100%); } }
+        @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes sheetDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .card-in { animation: fadeInUp 0.35s ease both; }
+      `}</style>
+
       {/* Header */}
       <div className="mb-5 md:mb-6">
         <h1 className="font-display text-[20px] sm:text-[24px] font-semibold text-[#14171C] tracking-tight">
           {search ? `Results for "${search}"` : activeCategory ? activeCategory.label : "All products"}
-          {brand ? ` · ${brand}` : ""}
+          {brand ? ` \u00B7 ${brand}` : ""}
         </h1>
         <p className="text-[13.5px] text-[#4B4F57] mt-1">
-          {loading ? "Searching…" : `${pagination.total} product${pagination.total === 1 ? "" : "s"}`}
+          {loading ? "Searching\u2026" : `${pagination.total} product${pagination.total === 1 ? "" : "s"}`}
         </p>
       </div>
 
-      {/* Sticky control bar: category tabs + sort + (mobile) filters trigger.
-          Stays reachable while scrolling a long grid. If this page sits
-          under a fixed site navbar, add that navbar's height as `top-*`
-          instead of `top-0`. */}
-      <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 bg-[#FBFBF9]/95 backdrop-blur border-b border-[#E1E3DD]">
+      {/* Sticky bar — category tabs ONLY. Everything else below scrolls normally
+          so it doesn't eat the viewport once a category is selected. */}
+      <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 bg-white/80 backdrop-blur-md border-b border-[#E5E7EA] supports-[backdrop-filter]:bg-white/70">
         <div className="flex items-center gap-2 py-3 overflow-x-auto whitespace-nowrap sm:flex-wrap">
           <button
             onClick={() => handleCategoryChange("")}
@@ -296,91 +406,126 @@ const ShopPage = () => {
             </button>
           ))}
         </div>
+      </div>
 
-        {/* Brand segment strip -- only when a specific category is selected.
-            Sits inside the sticky bar, right under the category tabs, so it
-            reads as "brands within this category" rather than a separate
-            filter. */}
-        {category && (
+      {/* Non-sticky: brand strip, price strip, filter/sort row */}
+      {category && (
+        <>
+          <div className="pt-3 pb-2.5">
+            <SectionLabel>Brands</SectionLabel>
+            <div className="mt-1.5">
+              <BrandStrip
+                brands={brands}
+                loading={brandsLoading}
+                error={brandsError}
+                selectedBrand={brand}
+                onSelect={handleBrandSelect}
+              />
+            </div>
+          </div>
+
           <div className="pb-3">
-            <BrandStrip
-              brands={brands}
-              loading={brandsLoading}
-              error={brandsError}
-              selectedBrand={brand}
-              onSelect={handleBrandSelect}
-            />
+            <div className="flex items-center justify-between px-1">
+              <SectionLabel>Price</SectionLabel>
+              {selectedPreset && (
+                <button
+                  onClick={() => handlePricePresetSelect(null)}
+                  className="text-[11px] font-medium text-[#FF5630] hover:underline"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+            <div className="mt-1.5">
+              {brandsLoading ? (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <SkeletonPriceChip key={i} />
+                  ))}
+                </div>
+              ) : (
+                <PricePresetStrip selectedPreset={selectedPreset} onSelect={handlePricePresetSelect} />
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="flex items-center justify-between gap-2 pb-3 pt-1">
+        {category ? (
+          <button
+            onClick={() => setMobileFiltersOpen(true)}
+            className="lg:hidden inline-flex items-center gap-1.5 rounded-full border border-[#E5E7EA] text-[13px] font-medium text-[#14171C] px-4 py-2 hover:border-[#14171C] bg-white shadow-sm"
+          >
+            <IconFilter />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[#2F5DFF] text-white text-[10.5px] font-mono">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        ) : (
+          <span />
+        )}
+
+        <Select value={sort} onChange={(v) => updateParams({ sort: v }, { resetPage: false })} options={sortOptions} />
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-8 pt-2 md:pt-3">
+        {/* Desktop sidebar */}
+        {category && (
+          <div className="hidden lg:block w-64 shrink-0">
+            <DynamicFilterSidebar category={category} filters={filters} onFilterChange={handleFilterChange} />
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 pb-3">
-          {category ? (
-            <button
-              onClick={() => setMobileFiltersOpen(true)}
-              className="lg:hidden inline-flex items-center gap-1.5 rounded-lg border border-[#E1E3DD] text-[13px] font-medium text-[#14171C] px-3.5 py-2 hover:border-[#2F5DFF] bg-white"
+        {/* Mobile bottom sheet */}
+        {category && mobileFiltersOpen && (
+          <div className="lg:hidden fixed inset-0 z-50 flex items-end">
+            <div
+              className={`absolute inset-0 bg-black/40 transition-opacity duration-200 ${sheetClosing ? "opacity-0" : "opacity-100"}`}
+              onClick={closeSheet}
+              aria-hidden="true"
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Filters"
+              className="relative w-full max-h-[85vh] bg-white rounded-t-3xl shadow-2xl overflow-hidden flex flex-col"
+              style={{ animation: `${sheetClosing ? "sheetDown" : "sheetUp"} 0.22s cubic-bezier(0.32,0.72,0,1) both` }}
             >
-              <IconFilter />
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[#2F5DFF] text-white text-[10.5px] font-mono">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-          ) : (
-            <span />
-          )}
-
-          <Select
-            value={sort}
-            onChange={(v) => updateParams({ sort: v }, { resetPage: false })}
-            options={sortOptions}
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-8 pt-5 md:pt-6">
-        {/* Sidebar -- inline on desktop, slide-over drawer below lg */}
-        {category && (
-          <>
-            <div className="hidden lg:block w-64 shrink-0">
-              <DynamicFilterSidebar category={category} filters={filters} onFilterChange={handleFilterChange} />
-            </div>
-
-            {mobileFiltersOpen && (
-              <div className="lg:hidden fixed inset-0 z-50 flex justify-end">
-                <div
-                  className="absolute inset-0 bg-black/30"
-                  onClick={() => setMobileFiltersOpen(false)}
-                  aria-hidden="true"
-                />
-                <div
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Filters"
-                  className="relative w-[85%] max-w-xs h-full bg-white shadow-xl overflow-y-auto p-5"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="font-display text-[15px] font-semibold text-[#14171C]">Filters</h2>
-                    <button
-                      onClick={() => setMobileFiltersOpen(false)}
-                      className="p-1.5 rounded-lg text-[#4B4F57] hover:bg-[#F6F7F3]"
-                      aria-label="Close filters"
-                    >
-                      <IconClose />
-                    </button>
-                  </div>
-                  <DynamicFilterSidebar category={category} filters={filters} onFilterChange={handleFilterChange} />
-                  <button
-                    onClick={() => setMobileFiltersOpen(false)}
-                    className="mt-5 w-full rounded-full bg-[#14171C] text-white text-[14px] font-medium py-2.5"
-                  >
-                    Show {pagination.total} result{pagination.total === 1 ? "" : "s"}
-                  </button>
-                </div>
+              <div className="flex justify-center pt-2.5 pb-1 shrink-0">
+                <div className="w-9 h-1 rounded-full bg-[#E5E7EA]" />
               </div>
-            )}
-          </>
+              <div className="flex items-center justify-between px-5 pt-1 pb-3 border-b border-[#E5E7EA] shrink-0">
+                <h2 className="font-display text-[15px] font-semibold text-[#14171C]">
+                  Filters
+                  {activeFilterCount > 0 && (
+                    <span className="ml-2 text-[12px] font-mono text-[#9CA0A6]">({activeFilterCount})</span>
+                  )}
+                </h2>
+                <button onClick={closeSheet} className="p-1.5 rounded-full text-[#4B4F57] hover:bg-[#F6F7F3]" aria-label="Close filters">
+                  <IconClose />
+                </button>
+              </div>
+              <div className="overflow-y-auto px-5 py-4 flex-1">
+                <SectionLabel>Price</SectionLabel>
+                <div className="mt-2 mb-5">
+                  <PricePresetStrip selectedPreset={selectedPreset} onSelect={handlePricePresetSelect} />
+                </div>
+                <DynamicFilterSidebar category={category} filters={filters} onFilterChange={handleFilterChange} />
+              </div>
+              <div className="px-5 py-4 border-t border-[#E5E7EA] shrink-0 bg-white">
+                <button
+                  onClick={closeSheet}
+                  className="w-full rounded-full bg-[#14171C] text-white text-[14px] font-medium py-3 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                >
+                  Show {pagination.total} result{pagination.total === 1 ? "" : "s"}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Results */}
@@ -393,19 +538,20 @@ const ShopPage = () => {
               {brand && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[#14171C] text-white text-[12px] font-medium pl-3 pr-1.5 py-1">
                   {brand}
-                  <button
-                    onClick={() => handleBrandSelect("")}
-                    aria-label="Clear brand filter"
-                    className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center"
-                  >
+                  <button onClick={() => handleBrandSelect("")} aria-label="Clear brand filter" className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center">
                     <IconClose width="9" height="9" />
                   </button>
                 </span>
               )}
-              <button
-                onClick={clearFilters}
-                className="text-[12.5px] font-medium text-[#2F5DFF] hover:underline"
-              >
+              {priceChipLabel && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF5630] text-white text-[12px] font-medium pl-3 pr-1.5 py-1">
+                  {priceChipLabel}
+                  <button onClick={() => handlePricePresetSelect(null)} aria-label="Clear price filter" className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center">
+                    <IconClose width="9" height="9" />
+                  </button>
+                </span>
+              )}
+              <button onClick={clearFilters} className="text-[12.5px] font-medium text-[#2F5DFF] hover:underline">
                 Clear all
               </button>
             </div>
@@ -418,26 +564,26 @@ const ShopPage = () => {
               ))}
             </div>
           ) : error ? (
-            <div className="rounded-lg bg-[#FBEAE7] border border-[#F2C6BD] px-3.5 py-2.5 text-[13px] text-[#C0402E]">
-              {error}
-            </div>
+            <div className="rounded-xl bg-[#FBEAE7] border border-[#F2C6BD] px-3.5 py-2.5 text-[13px] text-[#C0402E]">{error}</div>
           ) : products.length === 0 ? (
             <div className="text-center py-16">
+              <div className="w-12 h-12 rounded-full bg-[#F6F7F3] border border-[#E5E7EA] flex items-center justify-center mx-auto mb-4 text-[#9CA0A6]">
+                <IconFilter />
+              </div>
               <p className="text-[14px] font-medium text-[#14171C]">No products match these filters.</p>
               <p className="text-[13px] text-[#9CA0A6] mt-1">Try widening your search or clearing a filter.</p>
               {activeFilterCount > 0 && (
-                <button
-                  onClick={clearFilters}
-                  className="mt-4 rounded-full border border-[#E1E3DD] text-[13px] font-medium text-[#14171C] px-4 py-2 hover:border-[#14171C]"
-                >
+                <button onClick={clearFilters} className="mt-4 rounded-full border border-[#E5E7EA] text-[13px] font-medium text-[#14171C] px-4 py-2 hover:border-[#14171C]">
                   Clear filters
                 </button>
               )}
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {products.map((p) => (
-                <ProductCard key={p._id} product={p} />
+              {products.map((p, i) => (
+                <div key={p._id} className="card-in" style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}>
+                  <ProductCard product={p} />
+                </div>
               ))}
             </div>
           )}
