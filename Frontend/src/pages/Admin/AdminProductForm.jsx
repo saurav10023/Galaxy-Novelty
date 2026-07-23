@@ -4,6 +4,65 @@ import Select from "../../components/ui/Select";
 import { CATEGORIES, categoryFieldConfig } from "./productFieldConfig";
 import ai from "../../lib/gemini";
 
+/* ---------------------------------------------------------------------- */
+/* Icons -- small, dependency-free, matching the style used across the    */
+/* shop/admin-list pages (stroke-based, currentColor, 1.4 weight)          */
+/* ---------------------------------------------------------------------- */
+
+const IconSparkle = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="14" height="14" {...props}>
+    <path
+      d="M10 2.5l1.4 4.1L15.5 8l-4.1 1.4L10 13.5l-1.4-4.1L4.5 8l4.1-1.4L10 2.5z"
+      fill="currentColor"
+    />
+    <path d="M16 12.5l.6 1.7 1.7.6-1.7.6-.6 1.7-.6-1.7-1.7-.6 1.7-.6.6-1.7z" fill="currentColor" />
+  </svg>
+);
+const IconLock = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="12" height="12" {...props}>
+    <rect x="5" y="9" width="10" height="7.5" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+    <path d="M7 9V6.5a3 3 0 0 1 6 0V9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+  </svg>
+);
+const IconImage = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="15" height="15" {...props}>
+    <rect x="3" y="4" width="14" height="12" rx="1.6" stroke="currentColor" strokeWidth="1.4" />
+    <circle cx="7.3" cy="8" r="1.2" stroke="currentColor" strokeWidth="1.3" />
+    <path d="M3.8 14.5 8 10.5l2.3 2.2 2.7-3 3.2 4.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconPlus = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="15" height="15" {...props}>
+    <path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+const IconClose = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="13" height="13" {...props}>
+    <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+const IconTag = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="14" height="14" {...props}>
+    <path d="M11 3H4v7l9 9 7-7-9-9z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    <circle cx="7.3" cy="6.7" r="1" fill="currentColor" />
+  </svg>
+);
+const IconLayers = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="14" height="14" {...props}>
+    <path d="M10 3l7 3.5-7 3.5-7-3.5L10 3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    <path d="M3 10.5L10 14l7-3.5M3 14L10 17.5 17 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconRupee = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="14" height="14" {...props}>
+    <path d="M5 4h10M5 8h10M5 4c3 0 5 1.2 5 3.2S8 10.4 5 10.4h-.5L11 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/* ---------------------------------------------------------------------- */
+/* Config helpers -- unchanged logic                                      */
+/* ---------------------------------------------------------------------- */
+
 const emptyCommonFields = {
   name: "",
   brand: "",
@@ -515,28 +574,59 @@ Do not wrap inside \`\`\`.
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 md:px-10 py-10">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 w-40 bg-[#F1F1EE] rounded" />
-          <div className="h-32 bg-[#F1F1EE] rounded-xl" />
-          <div className="h-48 bg-[#F1F1EE] rounded-xl" />
-          <div className="h-40 bg-[#F1F1EE] rounded-xl" />
+      <div className="w-full max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-6 md:py-8">
+        <div className="animate-pulse space-y-5">
+          <div className="h-3 w-24 bg-[#F1F1EE] rounded" />
+          <div className="h-7 w-56 bg-[#F1F1EE] rounded" />
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] gap-5 lg:gap-6">
+            <div className="space-y-5 order-2 lg:order-1">
+              <div className="h-24 bg-[#F1F1EE] rounded-2xl" />
+              <div className="h-44 bg-[#F1F1EE] rounded-2xl" />
+              <div className="h-56 bg-[#F1F1EE] rounded-2xl" />
+            </div>
+            <div className="space-y-4 order-1 lg:order-2">
+              <div className="h-64 bg-[#F1F1EE] rounded-2xl" />
+              <div className="h-20 bg-[#F1F1EE] rounded-2xl" />
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   const config = categoryFieldConfig[category] || [];
+  const activeCategoryLabel = CATEGORIES.find((c) => c.key === category)?.label;
 
   return (
     <div className="w-full max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-6 md:py-8">
-      <h1 className="font-display text-[19px] sm:text-[22px] font-semibold text-[#14171C] tracking-tight mb-6">
-        {isEdit ? "Edit product" : "Add product"}
-      </h1>
+      <style>{`
+        @keyframes formFadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .form-section { animation: formFadeUp 0.32s ease both; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
+
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#9CA0A6] mb-1">
+            Inventory {isEdit ? "· Edit" : "· New"}
+          </p>
+          <h1 className="font-display text-[20px] sm:text-[23px] font-semibold text-[#14171C] tracking-tight">
+            {isEdit ? "Edit product" : "Add product"}
+          </h1>
+        </div>
+        {activeCategoryLabel && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F6F7F3] border border-[#E1E3DD] text-[12px] font-medium text-[#4B4F57] px-3 py-1.5">
+            <IconLayers />
+            {activeCategoryLabel}
+          </span>
+        )}
+      </div>
 
       {error && (
-        <div className="mb-5 rounded-lg bg-[#FBEAE7] border border-[#F2C6BD] px-3.5 py-2.5 text-[13px] text-[#C0402E]">
-          {error}
+        <div className="mb-5 rounded-xl bg-[#FBEAE7] border border-[#F2C6BD] px-4 py-3 text-[13px] text-[#C0402E] flex items-start gap-2">
+          <span className="font-semibold shrink-0">Couldn't save —</span>
+          <span>{error}</span>
         </div>
       )}
 
@@ -549,10 +639,8 @@ Do not wrap inside \`\`\`.
           {/* ---- Main column ---- */}
           <div className="space-y-5 sm:space-y-6 order-2 lg:order-1 min-w-0">
             {/* Category */}
-            <div className="bg-white border border-[#E1E3DD] rounded-xl p-4 sm:p-5">
-              <label className="block font-mono text-[10.5px] uppercase tracking-wider text-[#9CA0A6] mb-1.5">
-                Category
-              </label>
+            <section className="form-section bg-white border border-[#E1E3DD] rounded-2xl p-4 sm:p-5 shadow-[0_1px_2px_rgba(20,23,28,0.04)]">
+              <SectionHeading icon={<IconLayers />} title="Category" />
               <Select
                 value={category}
                 onChange={handleCategoryChange}
@@ -561,19 +649,22 @@ Do not wrap inside \`\`\`.
                 options={CATEGORIES.map((c) => ({ value: c.key, label: c.label }))}
               />
               {isEdit && (
-                <p className="text-[12px] text-[#9CA0A6] mt-1.5">
-                  Category can't be changed after creation.
+                <p className="flex items-center gap-1.5 text-[12px] text-[#9CA0A6] mt-2">
+                  <IconLock /> Category can't be changed after creation.
                 </p>
               )}
-            </div>
+            </section>
 
             {/* Common fields */}
-            <div className="bg-white border border-[#E1E3DD] rounded-xl p-4 sm:p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[13px] font-semibold text-[#14171C]">Basic details</h2>
+            <section
+              className="form-section bg-white border border-[#E1E3DD] rounded-2xl p-4 sm:p-5 shadow-[0_1px_2px_rgba(20,23,28,0.04)]"
+              style={{ animationDelay: "40ms" }}
+            >
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <SectionHeading icon={<IconTag />} title="Basic details" bare />
                 {aiFillCount > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6B3FD9] bg-[#F1ECFC] px-2 py-0.5 rounded-full">
-                    ✨ {aiFillCount} field{aiFillCount === 1 ? "" : "s"} AI-filled
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6B3FD9] bg-[#F1ECFC] px-2.5 py-1 rounded-full">
+                    <IconSparkle /> {aiFillCount} field{aiFillCount === 1 ? "" : "s"} AI-filled
                   </span>
                 )}
               </div>
@@ -593,7 +684,7 @@ Do not wrap inside \`\`\`.
                       type="button"
                       onClick={handleAiAutofill}
                       disabled={aiLoading || !common.name.trim()}
-                      className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#6B3FD9] text-white text-[13px] font-medium px-4 py-2.5 hover:bg-[#5B34BD] transition-colors disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
+                      className="group shrink-0 inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-[#6B3FD9] to-[#8657E0] text-white text-[13px] font-medium px-4 py-2.5 shadow-[0_2px_10px_-2px_rgba(107,63,217,0.5)] hover:shadow-[0_4px_14px_-2px_rgba(107,63,217,0.6)] hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none w-full sm:w-auto"
                     >
                       {aiLoading ? (
                         <>
@@ -601,7 +692,10 @@ Do not wrap inside \`\`\`.
                           Filling…
                         </>
                       ) : (
-                        <>✨ Auto-fill with AI</>
+                        <>
+                          <IconSparkle className="group-hover:scale-110 transition-transform" />
+                          Auto-fill with AI
+                        </>
                       )}
                     </button>
                   </div>
@@ -630,17 +724,18 @@ Do not wrap inside \`\`\`.
                     value={common.description}
                     onChange={(e) => handleCommonChange("description", e.target.value)}
                     rows={3}
-                    className={`${inputClass} ${aiFilledKeys.has("description") ? aiFilledRing : ""}`}
+                    className={`${inputClass} ${aiFilledKeys.has("description") ? aiFilledRing : ""} resize-none`}
                   />
                 </Field>
               </div>
-            </div>
+            </section>
 
             {/* Category-specific fields */}
-            <div className="bg-white border border-[#E1E3DD] rounded-xl p-4 sm:p-5">
-              <h2 className="text-[13px] font-semibold text-[#14171C] mb-4">
-                {CATEGORIES.find((c) => c.key === category)?.label} details
-              </h2>
+            <section
+              className="form-section bg-white border border-[#E1E3DD] rounded-2xl p-4 sm:p-5"
+              style={{ animationDelay: "80ms" }}
+            >
+              <SectionHeading icon={<IconLayers />} title={`${activeCategoryLabel || ""} details`} />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {config.map((f) => {
@@ -687,44 +782,49 @@ Do not wrap inside \`\`\`.
                       )}
 
                       {f.type === "boolean" && (
-                        <label className="flex items-center gap-2 text-[13.5px] text-[#14171C] min-h-[40px] px-1 -mx-1 rounded-lg hover:bg-[#F6F7F3] cursor-pointer w-fit">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(categoryFields[f.key])}
-                            onChange={(e) => handleCategoryFieldChange(f.key, e.target.checked)}
-                            className="w-[18px] h-[18px] accent-[#2F5DFF]"
-                          />
-                          Yes
-                        </label>
+                        <ToggleSwitch
+                          checked={Boolean(categoryFields[f.key])}
+                          onChange={(v) => handleCategoryFieldChange(f.key, v)}
+                          highlighted={isAiFilled}
+                        />
                       )}
 
                       {f.type === "multiselect" && (
-                        <div className="flex flex-wrap gap-x-4 gap-y-1">
-                          {f.options.map((opt) => (
-                            <label
-                              key={opt}
-                              className="flex items-center gap-1.5 text-[13px] text-[#14171C] min-h-[38px] px-1 -mx-1 rounded-lg hover:bg-[#F6F7F3] cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={(categoryFields[f.key] || []).includes(opt)}
-                                onChange={() => handleMultiselectToggle(f.key, opt)}
-                                className="w-[18px] h-[18px] accent-[#2F5DFF]"
-                              />
-                              {opt}
-                            </label>
-                          ))}
+                        <div className="flex flex-wrap gap-2">
+                          {f.options.map((opt) => {
+                            const selected = (categoryFields[f.key] || []).includes(opt);
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => handleMultiselectToggle(f.key, opt)}
+                                aria-pressed={selected}
+                                className={`shrink-0 px-3.5 py-1.5 rounded-full border text-[12.5px] font-medium transition-all duration-150 active:scale-95 ${
+                                  selected
+                                    ? "bg-[#2F5DFF] border-[#2F5DFF] text-white shadow-[0_2px_10px_-2px_rgba(47,93,255,0.45)]"
+                                    : `bg-white border-[#E1E3DD] text-[#4B4F57] hover:border-[#2F5DFF]/60 hover:text-[#14171C] ${
+                                        isAiFilled ? "ring-2 ring-[#6B3FD9]/30" : ""
+                                      }`
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
                     </Field>
                   );
                 })}
               </div>
-            </div>
+            </section>
 
             {/* Images */}
-            <div className="bg-white border border-[#E1E3DD] rounded-xl p-4 sm:p-5 space-y-4">
-              <h2 className="text-[13px] font-semibold text-[#14171C]">Images</h2>
+            <section
+              className="form-section bg-white border border-[#E1E3DD] rounded-2xl p-4 sm:p-5 space-y-4"
+              style={{ animationDelay: "120ms" }}
+            >
+              <SectionHeading icon={<IconImage />} title="Images" />
 
               {imageActionError && (
                 <div className="rounded-lg bg-[#FBEAE7] border border-[#F2C6BD] px-3.5 py-2.5 text-[13px] text-[#C0402E]">
@@ -737,23 +837,23 @@ Do not wrap inside \`\`\`.
                   <p className="font-mono text-[10.5px] uppercase tracking-wider text-[#9CA0A6] mb-2">
                     Current images
                   </p>
-                  <div className="flex flex-wrap gap-3">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                     {existingImages.map((img, i) => (
-                      <div key={img.publicId || `${img.url}-${i}`} className="relative">
-                        <img
-                          src={img.url}
-                          alt=""
-                          className="w-20 h-20 rounded-lg object-cover border border-[#E1E3DD]"
-                        />
+                      <div
+                        key={img.publicId || `${img.url}-${i}`}
+                        className="group relative aspect-square rounded-xl overflow-hidden border border-[#E1E3DD] bg-[#F6F7F3]"
+                      >
+                        <img src={img.url} alt="" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors" />
                         <button
                           type="button"
                           onClick={() => handleRemoveImage(img.publicId)}
                           disabled={!img.publicId}
                           title={!img.publicId ? "This image has no publicId and can't be removed here" : "Remove image"}
-                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#C0402E] text-white text-[13px] flex items-center justify-center shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 text-[#C0402E] flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:opacity-0"
                           aria-label="Remove image"
                         >
-                          ×
+                          <IconClose />
                         </button>
                       </div>
                     ))}
@@ -762,45 +862,47 @@ Do not wrap inside \`\`\`.
               )}
 
               <div>
-                <label className="block font-mono text-[10.5px] uppercase tracking-wider text-[#9CA0A6] mb-1.5">
-                  {isEdit ? "Add more images (Optional)" : "Product images (Optional)"}
+                <label className="block font-mono text-[10.5px] uppercase tracking-wider text-[#9CA0A6] mb-2">
+                  {isEdit ? "Add more images (optional)" : "Product images (optional)"}
                 </label>
 
-                <label className="inline-flex items-center gap-2 rounded-lg border border-dashed border-[#C7CAC3] bg-[#F6F7F3] text-[13px] font-medium text-[#4B4F57] px-4 py-2.5 cursor-pointer hover:border-[#2F5DFF] hover:text-[#14171C] transition-colors w-full sm:w-auto justify-center">
-                  + Choose images
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleNewImagesSelected}
-                    className="hidden"
-                  />
-                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                  {newImageFiles.map((file, i) => (
+                    <div
+                      key={`${file.name}-${i}`}
+                      className="group relative aspect-square rounded-xl overflow-hidden border border-[#E1E3DD]"
+                    >
+                      <img src={newImagePreviews[i]} alt="" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveNewImage(i)}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 text-[#C0402E] flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                        aria-label="Remove selected image"
+                      >
+                        <IconClose />
+                      </button>
+                      <span className="absolute bottom-1 left-1 right-1 truncate text-center text-[9.5px] font-mono text-white bg-black/40 rounded px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        New
+                      </span>
+                    </div>
+                  ))}
 
-                {newImageFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-3 mt-3">
-                    {newImageFiles.map((file, i) => (
-                      <div key={`${file.name}-${i}`} className="relative">
-                        <img
-                          src={newImagePreviews[i]}
-                          alt=""
-                          className="w-20 h-20 rounded-lg object-cover border border-[#E1E3DD]"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveNewImage(i)}
-                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#C0402E] text-white text-[13px] flex items-center justify-center shadow-sm"
-                          aria-label="Remove selected image"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  <label className="aspect-square flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-[#D8DAD3] bg-[#F6F7F3] text-[#9CA0A6] cursor-pointer hover:border-[#2F5DFF] hover:text-[#2F5DFF] hover:bg-[#F5F7FF] transition-colors">
+                    <IconPlus />
+                    <span className="text-[11px] font-medium">Add</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleNewImagesSelected}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
 
                 {isEdit && newImageFiles.length > 0 && (
-                  <p className="text-[11.5px] text-[#9CA0A6] mt-2">
+                  <p className="text-[11.5px] text-[#9CA0A6] mt-2.5">
                     These will upload when you click "Upload now" below, or automatically when you save changes.
                   </p>
                 )}
@@ -810,22 +912,25 @@ Do not wrap inside \`\`\`.
                 <button
                   type="button"
                   onClick={handleAddImages}
-                  className="rounded-lg border border-[#E1E3DD] text-[13px] font-medium text-[#14171C] px-3.5 py-2 hover:border-[#14171C] w-full sm:w-auto"
+                  className="rounded-lg border border-[#E1E3DD] text-[13px] font-medium text-[#14171C] px-3.5 py-2 hover:border-[#14171C] hover:bg-[#F6F7F3] transition-colors w-full sm:w-auto"
                 >
                   Upload {newImageFiles.length} image{newImageFiles.length === 1 ? "" : "s"} now
                 </button>
               )}
-            </div>
+            </section>
           </div>
 
           {/* ---- Right rail: everything the admin (not the AI) must fill in ----
               Sticky on desktop so pricing/stock stay reachable without scrolling,
               which is the whole point after using AI auto-fill higher up the page. */}
           <div className="space-y-4 order-1 lg:order-2 lg:sticky lg:top-6">
-            <div className="bg-[#F3F6FF] border-2 border-[#2F5DFF]/25 rounded-xl p-4 sm:p-5">
+            <section className="form-section bg-gradient-to-b from-[#F3F6FF] to-[#EEF2FF] border-2 border-[#2F5DFF]/20 rounded-2xl p-4 sm:p-5 shadow-[0_2px_12px_-4px_rgba(47,93,255,0.25)]">
               <div className="flex items-center gap-2 mb-1">
+                <span className="w-6 h-6 rounded-lg bg-white border border-[#2F5DFF]/25 text-[#2F5DFF] flex items-center justify-center shrink-0">
+                  <IconRupee />
+                </span>
                 <h2 className="text-[13px] font-semibold text-[#14171C]">Pricing &amp; stock</h2>
-                <span className="text-[10.5px] font-mono uppercase tracking-wider text-[#2F5DFF] bg-white border border-[#2F5DFF]/30 rounded-full px-2 py-0.5">
+                <span className="ml-auto text-[10px] font-mono uppercase tracking-wider text-[#2F5DFF] bg-white border border-[#2F5DFF]/30 rounded-full px-2 py-0.5 shrink-0">
                   You fill this
                 </span>
               </div>
@@ -887,33 +992,37 @@ Do not wrap inside \`\`\`.
                   />
                 </Field>
               </div>
-            </div>
+            </section>
 
             {isEdit && (
-              <div className="bg-white border border-[#E1E3DD] rounded-xl p-4 sm:p-5">
+              <section
+                className="form-section bg-white border border-[#E1E3DD] rounded-2xl p-4 sm:p-5"
+                style={{ animationDelay: "40ms" }}
+              >
                 <h2 className="text-[13px] font-semibold text-[#14171C] mb-3">Status</h2>
                 <div className="flex items-center gap-2 text-[13.5px] text-[#14171C]">
                   <span
-                    className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium ${
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium ${
                       isActive ? "bg-[#E6F4EA] text-[#1E7B3B]" : "bg-[#F1F1EE] text-[#4B4F57]"
                     }`}
                   >
+                    <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-[#1E7B3B]" : "bg-[#9CA0A6]"}`} />
                     {isActive ? "Active" : "Inactive"}
                   </span>
                 </div>
                 <p className="text-[12px] text-[#9CA0A6] mt-1.5">
                   Change this from the inventory list.
                 </p>
-              </div>
+              </section>
             )}
 
             {/* Desktop-only save actions live in the rail too, so there's no need
                 to scroll to the bottom of a long form to submit. */}
-            <div className="hidden lg:flex flex-col gap-2 bg-white border border-[#E1E3DD] rounded-xl p-4 sm:p-5">
+            <div className="hidden lg:flex flex-col gap-2 bg-white border border-[#E1E3DD] rounded-2xl p-4 sm:p-5">
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-full bg-[#14171C] text-white text-[14px] font-medium px-6 py-2.5 hover:bg-[#2F5DFF] transition-colors duration-150 disabled:opacity-50 w-full"
+                className="rounded-full bg-[#14171C] text-white text-[14px] font-medium px-6 py-2.5 hover:bg-[#2F5DFF] active:scale-[0.98] transition-all duration-150 disabled:opacity-50 w-full"
               >
                 {saving ? "Saving…" : isEdit ? "Save changes" : "Create product"}
               </button>
@@ -929,11 +1038,11 @@ Do not wrap inside \`\`\`.
         </div>
 
         {/* Mobile/tablet sticky save bar (hidden on desktop — the rail above handles it there) */}
-        <div className="lg:hidden sticky bottom-0 -mx-4 sm:-mx-6 mt-5 bg-white/95 backdrop-blur border-t border-[#E1E3DD] px-4 sm:px-6 py-3 flex items-center gap-3">
+        <div className="lg:hidden sticky bottom-0 -mx-4 sm:-mx-6 mt-5 bg-white/95 backdrop-blur-md border-t border-[#E1E3DD] px-4 sm:px-6 py-3 flex items-center gap-3 shadow-[0_-4px_16px_rgba(20,23,28,0.06)]">
           <button
             type="submit"
             disabled={saving}
-            className="rounded-full bg-[#14171C] text-white text-[14px] font-medium px-6 py-2.5 hover:bg-[#2F5DFF] transition-colors duration-150 disabled:opacity-50 flex-1 sm:flex-none"
+            className="rounded-full bg-[#14171C] text-white text-[14px] font-medium px-6 py-2.5 hover:bg-[#2F5DFF] active:scale-[0.98] transition-all duration-150 disabled:opacity-50 flex-1 sm:flex-none"
           >
             {saving ? "Saving…" : isEdit ? "Save changes" : "Create product"}
           </button>
@@ -950,21 +1059,68 @@ Do not wrap inside \`\`\`.
   );
 };
 
+/* ---------------------------------------------------------------------- */
+/* Presentational helpers                                                 */
+/* ---------------------------------------------------------------------- */
+
 const inputClass =
-  "w-full font-mono text-[13.5px] bg-[#F6F7F3] border border-[#E1E3DD] rounded-lg px-3.5 py-2.5 text-[#14171C] placeholder:text-[#9CA0A6] focus:outline-none focus:border-[#2F5DFF] transition-colors";
+  "w-full font-mono text-[13.5px] bg-[#F6F7F3] border border-[#E1E3DD] rounded-lg px-3.5 py-2.5 text-[#14171C] placeholder:text-[#9CA0A6] focus:outline-none focus:border-[#2F5DFF] focus:ring-[3px] focus:ring-[#2F5DFF]/12 focus:bg-white transition-all";
 
 const aiFilledRing = "ring-2 ring-[#6B3FD9]/40 border-[#6B3FD9]";
+
+const SectionHeading = ({ icon, title, bare }) => (
+  <h2
+    className={`flex items-center gap-2 text-[13px] font-semibold text-[#14171C] capitalize ${
+      bare ? "" : "mb-4"
+    }`}
+  >
+    <span className="w-6 h-6 rounded-md bg-[#F6F7F3] border border-[#E1E3DD] text-[#4B4F57] flex items-center justify-center shrink-0">
+      {icon}
+    </span>
+    {title}
+  </h2>
+);
 
 const Field = ({ label, required, aiFilled, children, className = "" }) => (
   <div className={className}>
     <label className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-[#9CA0A6] mb-1.5">
       {label} {required && <span className="text-[#C0402E]">*</span>}
       {aiFilled && (
-        <span className="normal-case font-sans text-[10px] text-[#6B3FD9]">· AI</span>
+        <span className="normal-case font-sans inline-flex items-center gap-0.5 text-[10px] font-medium text-[#6B3FD9] bg-[#F1ECFC] rounded-full px-1.5 py-0.5">
+          <IconSparkle width="9" height="9" /> AI
+        </span>
       )}
     </label>
     {children}
   </div>
+);
+
+// Modern pill toggle used for boolean fields, in place of a plain checkbox.
+const ToggleSwitch = ({ checked, onChange, highlighted }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={checked}
+    onClick={() => onChange(!checked)}
+    className={`inline-flex items-center gap-2.5 rounded-full border px-1 py-1 pr-3 transition-colors duration-150 ${
+      checked ? "bg-[#EEF2FF] border-[#2F5DFF]/40" : "bg-white border-[#E1E3DD]"
+    } ${highlighted ? "ring-2 ring-[#6B3FD9]/30" : ""}`}
+  >
+    <span
+      className={`relative w-9 h-5 rounded-full transition-colors duration-150 ${
+        checked ? "bg-[#2F5DFF]" : "bg-[#D8DAD3]"
+      }`}
+    >
+      <span
+        className={`absolute top-[3px] w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all duration-150 ${
+          checked ? "left-[19px]" : "left-[3px]"
+        }`}
+      />
+    </span>
+    <span className={`text-[13px] font-medium ${checked ? "text-[#14171C]" : "text-[#9CA0A6]"}`}>
+      {checked ? "Yes" : "No"}
+    </span>
+  </button>
 );
 
 export default AdminProductForm;
