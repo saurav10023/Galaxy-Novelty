@@ -1,19 +1,27 @@
 // pages/admin/AdminProductsList.jsx
 //
 // Same URL-driven filtering pattern as the public ShopPage: `category`,
-// `search`, `sort`, `page`, `brand`, and any category-specific filter all
-// live in the URL, so a filtered admin view is shareable/bookmarkable and
-// survives a refresh. The DynamicFilterSidebar + categoryFilterFields config
-// are reused as-is from the shop -- same filter fields per category, just
-// pointed at the admin search endpoint.
+// `search`, `sort`, `page`, `brand`, `minPrice`/`maxPrice`, and any
+// category-specific filter all live in the URL, so a filtered admin view is
+// shareable/bookmarkable and survives a refresh. The DynamicFilterSidebar +
+// categoryFilterFields config are reused as-is from the shop -- same filter
+// fields per category, just pointed at the admin search endpoint.
 //
-// NEW: "Brands" toggle next to the category tabs. When a category is
-// selected, tapping it fetches GET /admin/brands?category=... (distinct
-// brand names + counts + a sample image, powered by search.controller.js's
+// "Brands" toggle next to the category tabs. When a category is selected,
+// tapping it fetches GET /admin/brands?category=... (distinct brand names +
+// counts + a sample image, powered by search.controller.js's
 // getBrandsByCategory) and renders them as a horizontal chip strip. Tapping
 // a brand chip writes `brand` into the URL, same lane as `category`/`search`/
 // `sort` -- it survives sidebar filter changes and page navigation, and gets
 // picked up automatically by buildProductQuery on the next /admin/search call.
+//
+// NEW: "Price" toggle, same pattern as Brands. Expands into a preset chip
+// strip; the ladder shown depends on the active category -- Power Bank /
+// Charger / Headphones get a tight budget ladder (Under 1k, 1k-1.5k,
+// 1.5k-2k, 2k+), everything else (phones included) gets the original
+// 8k-22k+ ladder. Selecting a preset writes `minPrice`/`maxPrice` into the
+// URL, same lane as `brand` -- it survives sidebar filter changes and page
+// navigation, and gets picked up automatically by buildProductQuery.
 //
 // Layout: >=1024px (lg) shows the classic table with the filter sidebar
 // pinned alongside it. Below that -- tablet and mobile -- every attribute
@@ -66,6 +74,116 @@ const IconTag = (props) => (
     <path d="M11 3H4v7l9 9 7-7-9-9z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
     <circle cx="7.3" cy="6.7" r="1.1" fill="currentColor" />
   </svg>
+);
+const IconRupee = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="15" height="15" {...props}>
+    <path d="M5 4h10M5 8h10M5 4c3 0 5 1.2 5 3.2S8 10.4 5 10.4h-.5L11 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/* ---------------------------------------------------------------------- */
+/* Price presets -- same ladder logic as the public ShopPage              */
+/* ---------------------------------------------------------------------- */
+// Two ladders. Which one shows up is decided by getPricePresets() below,
+// keyed off the active category. Edit either list to move its ladder, or
+// add more category keys to BUDGET_CATEGORY_MATCHERS to route them onto
+// the budget ladder instead of the phone one.
+
+const formatINR = (n) => `\u20B9${n.toLocaleString("en-IN")}`;
+
+// Default sort — price low to high. Rather than hardcoding a guessed value
+// string, this looks through the real sortOptions (from
+// categoryfilterfields.js) for the low-to-high entry, matching on label
+// text ("low"..."high") or common value spellings (price_asc, price-asc,
+// priceAsc, asc). Falls back to "price_asc" only if nothing matches, so if
+// sortOptions doesn't have a low-to-high entry at all this won't silently
+// select the wrong thing without a console warning.
+const findLowToHighSortValue = (options) => {
+  if (!Array.isArray(options)) return null;
+  const match = options.find((o) => {
+    const label = String(o.label || "").toLowerCase();
+    const value = String(o.value || "").toLowerCase();
+    if (label.includes("low") && label.includes("high")) return true;
+    if (value.replace(/[-_\s]/g, "").includes("priceasc")) return true;
+    if (value.includes("price") && value.includes("asc")) return true;
+    return false;
+  });
+  return match ? match.value : null;
+};
+
+const DEFAULT_SORT = findLowToHighSortValue(sortOptions) || "price_asc";
+if (!findLowToHighSortValue(sortOptions)) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    "[AdminProductsList] Couldn't find a low-to-high option in sortOptions — defaulting to \"price_asc\". Check the value string in categoryfilterfields.js."
+  );
+}
+
+// Phones (and anything not matched below) — original ladder.
+const PHONE_PRICE_PRESETS = [
+  { label: "8k–10k", min: 8000, max: 10000 },
+  { label: "10k–12k", min: 10000, max: 12000 },
+  { label: "12k–14k", min: 12000, max: 14000 },
+  { label: "14k–16k", min: 14000, max: 16000 },
+  { label: "16k–18k", min: 16000, max: 18000 },
+  { label: "18k–20k", min: 18000, max: 20000 },
+  { label: "20k–22k", min: 20000, max: 22000 },
+  { label: "22k+", min: 22000, max: undefined },
+];
+
+// Power bank / charger / headphones — tighter budget ladder: below 1000,
+// then 500-wide steps up to 2000, then an open-ended 2000+ band.
+const BUDGET_PRICE_PRESETS = [
+  { label: `Under ${formatINR(1000)}`, min: 0, max: 1000 },
+  { label: `${formatINR(1000)}–${formatINR(1500)}`, min: 1000, max: 1500 },
+  { label: `${formatINR(1500)}–${formatINR(2000)}`, min: 1500, max: 2000 },
+  { label: `${formatINR(2000)}+`, min: 2000, max: undefined },
+];
+
+// Category keys/labels that should use the budget ladder instead of the
+// phone ladder. Matched case-insensitively against both the category `key`
+// and `label` so this keeps working regardless of exact casing/slug used
+// in categoryfilterfields.js.
+const BUDGET_CATEGORY_MATCHERS = [
+  "powerbank",
+  "power-bank",
+  "power bank",
+  "charger",
+  "headphone",
+  "earphone",
+];
+
+const getPricePresets = (categoryKey) => {
+  const cat = CATEGORIES.find((c) => c.key === categoryKey);
+  const haystack = `${categoryKey || ""} ${cat?.label || ""}`.toLowerCase();
+  const isBudgetCategory = BUDGET_CATEGORY_MATCHERS.some((m) => haystack.includes(m));
+  return isBudgetCategory ? BUDGET_PRICE_PRESETS : PHONE_PRICE_PRESETS;
+};
+
+// A plain pill — coral fill/glow when selected, otherwise neutral. Scales
+// down slightly on tap for tactile feedback.
+const PricePresetChip = ({ preset, isSelected, onSelect }) => (
+  <button
+    onClick={() => onSelect(isSelected ? null : preset)}
+    aria-pressed={isSelected}
+    className={`snap-start shrink-0 px-4 py-2 sm:px-3.5 sm:py-1.5 rounded-full border text-[13px] font-medium transition-all duration-150 whitespace-nowrap active:scale-95 ${
+      isSelected
+        ? "bg-[#FF5630] border-[#FF5630] text-white shadow-[0_4px_14px_-2px_rgba(255,86,48,0.45)]"
+        : "bg-white border-[#E1E3DD] text-[#4B4F57] hover:border-[#FF5630]/60 hover:text-[#14171C] hover:shadow-sm"
+    }`}
+  >
+    {preset.label}
+  </button>
+);
+
+const PricePresetStrip = ({ presets, selectedPreset, onSelect }) => (
+  <div className="flex items-center gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scroll-smooth [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    {presets.map((p) => {
+      const isSelected =
+        selectedPreset && selectedPreset.min === p.min && selectedPreset.max === p.max;
+      return <PricePresetChip key={p.label} preset={p} isSelected={isSelected} onSelect={onSelect} />;
+    })}
+  </div>
 );
 
 // Row of admin actions shared by the table and the card layout.
@@ -221,11 +339,34 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
   const [brandsError, setBrandsError] = useState("");
   const [showBrands, setShowBrands] = useState(false);
 
+  // -- price feature state ----------------------------------------------
+  const [showPrice, setShowPrice] = useState(false);
+
   const category = searchParams.get("category") || "";
   const search = searchParams.get("search") || "";
-  const sort = searchParams.get("sort") || "newest";
+  const sort = searchParams.get("sort") || DEFAULT_SORT;
   const page = Number(searchParams.get("page")) || 1;
-  const brand = searchParams.get("brand") || ""; // new -- same lane as category/search/sort
+  const brand = searchParams.get("brand") || ""; // same lane as category/search/sort
+  const minPrice = searchParams.get("minPrice");
+  const maxPrice = searchParams.get("maxPrice");
+
+  // Which price ladder applies to the active category.
+  const pricePresets = useMemo(() => getPricePresets(category), [category]);
+
+  const selectedPreset = useMemo(() => {
+    if (!minPrice) return null;
+    return (
+      pricePresets.find(
+        (p) => String(p.min) === minPrice && String(p.max || "") === (maxPrice || "")
+      ) || null
+    );
+  }, [pricePresets, minPrice, maxPrice]);
+
+  const priceChipLabel = selectedPreset
+    ? selectedPreset.max
+      ? `${formatINR(selectedPreset.min)}\u2013${formatINR(selectedPreset.max)}`
+      : `${formatINR(selectedPreset.min)}+`
+    : null;
 
   // Local, uncommitted copy of the search box -- only written to the URL
   // (and therefore only triggers a fetch) on submit.
@@ -237,7 +378,9 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
   const filters = useMemo(() => {
     const obj = {};
     for (const [key, value] of searchParams.entries()) {
-      if (!["category", "search", "sort", "page", "brand"].includes(key)) obj[key] = value;
+      if (!["category", "search", "sort", "page", "brand", "minPrice", "maxPrice"].includes(key)) {
+        obj[key] = value;
+      }
     }
     return obj;
   }, [searchParams]);
@@ -249,6 +392,10 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
     setError("");
     try {
       const params = Object.fromEntries(searchParams.entries());
+      // If the URL has no explicit sort, the request still needs one --
+      // otherwise the backend falls back to its own default instead of
+      // opening on low-to-high price.
+      if (!params.sort) params.sort = DEFAULT_SORT;
       const res = await API.get("/api/v1/products/admin/search", {
         params: { ...params, limit: 20 },
       });
@@ -284,10 +431,12 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
 
   // Switching category invalidates the cached brand list -- collapse the
   // panel and clear stale brands so a re-open always fetches fresh data
-  // for the new category.
+  // for the new category. Also collapse the price panel, since the ladder
+  // itself changes per category.
   useEffect(() => {
     setShowBrands(false);
     setBrands([]);
+    setShowPrice(false);
   }, [category]);
 
   const handleToggleBrands = () => {
@@ -303,6 +452,23 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
 
   const handleClearBrand = () => {
     updateParams({ brand: undefined });
+  };
+
+  const handleTogglePrice = () => {
+    setShowPrice((prev) => !prev);
+  };
+
+  const handlePricePresetSelect = (preset) => {
+    if (!preset) {
+      updateParams({ minPrice: undefined, maxPrice: undefined });
+      return;
+    }
+    updateParams({ minPrice: String(preset.min), maxPrice: preset.max ? String(preset.max) : undefined });
+    setShowPrice(false);
+  };
+
+  const handleClearPrice = () => {
+    updateParams({ minPrice: undefined, maxPrice: undefined });
   };
 
   // Lock body scroll while the mobile filter drawer is open.
@@ -329,12 +495,13 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
   };
 
   const handleCategoryChange = (newCategory) => {
-    // switching category invalidates every category-specific filter,
-    // and the previously selected brand (brands don't cross categories)
+    // switching category invalidates every category-specific filter, and
+    // the previously selected brand/price (neither carries across categories
+    // -- brands are category-scoped, and the price ladder itself changes)
     const next = new URLSearchParams();
     if (newCategory) next.set("category", newCategory);
     if (search) next.set("search", search);
-    if (sort !== "newest") next.set("sort", sort);
+    if (sort !== DEFAULT_SORT) next.set("sort", sort);
     setSearchParams(next);
   };
 
@@ -342,8 +509,10 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
     const next = new URLSearchParams();
     if (category) next.set("category", category);
     if (search) next.set("search", search);
-    if (sort !== "newest") next.set("sort", sort);
+    if (sort !== DEFAULT_SORT) next.set("sort", sort);
     if (brand) next.set("brand", brand); // preserve brand across sidebar filter changes
+    if (minPrice) next.set("minPrice", minPrice); // preserve price across sidebar filter changes
+    if (maxPrice) next.set("maxPrice", maxPrice);
     Object.entries(newFilters).forEach(([key, value]) => {
       if (value !== undefined && value !== "") next.set(key, value);
     });
@@ -393,6 +562,7 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
           <p className="text-[13.5px] text-[#4B4F57] mt-1">
             {search ? `Results for "${search}" — ` : activeCategory ? `${activeCategory.label} — ` : ""}
             {brand ? `${brand} — ` : ""}
+            {priceChipLabel ? `${priceChipLabel} — ` : ""}
             {pagination.total} product{pagination.total === 1 ? "" : "s"}
           </p>
         </div>
@@ -427,49 +597,90 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
         ))}
       </div>
 
-      {/* Brands toggle + chip strip -- only when a specific category is active */}
+      {/* Brands + Price toggles -- only when a specific category is active */}
       {category && (
-        <div className="mb-5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={handleToggleBrands}
-              aria-expanded={showBrands}
-              className={`inline-flex items-center gap-1.5 rounded-full border text-[13px] font-medium px-3.5 py-2 transition-colors duration-150 ${
-                showBrands
-                  ? "border-[#2F5DFF] text-[#2F5DFF] bg-[#EEF2FF]"
-                  : "border-[#E1E3DD] text-[#14171C] hover:border-[#2F5DFF]"
-              }`}
-            >
-              <IconTag />
-              Brands
-              <IconChevronDown className={`transition-transform duration-150 ${showBrands ? "rotate-180" : ""}`} />
-            </button>
+        <div className="mb-5 flex flex-col sm:flex-row sm:items-start gap-3">
+          {/* Brands */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={handleToggleBrands}
+                aria-expanded={showBrands}
+                className={`inline-flex items-center gap-1.5 rounded-full border text-[13px] font-medium px-3.5 py-2 transition-colors duration-150 ${
+                  showBrands
+                    ? "border-[#2F5DFF] text-[#2F5DFF] bg-[#EEF2FF]"
+                    : "border-[#E1E3DD] text-[#14171C] hover:border-[#2F5DFF]"
+                }`}
+              >
+                <IconTag />
+                Brands
+                <IconChevronDown className={`transition-transform duration-150 ${showBrands ? "rotate-180" : ""}`} />
+              </button>
 
-            {brand && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#14171C] text-white text-[12.5px] font-medium pl-3 pr-1.5 py-1.5">
-                {brand}
-                <button
-                  onClick={handleClearBrand}
-                  aria-label="Clear brand filter"
-                  className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center"
-                >
-                  <IconClose width="10" height="10" />
-                </button>
-              </span>
+              {brand && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#14171C] text-white text-[12.5px] font-medium pl-3 pr-1.5 py-1.5">
+                  {brand}
+                  <button
+                    onClick={handleClearBrand}
+                    aria-label="Clear brand filter"
+                    className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center"
+                  >
+                    <IconClose width="10" height="10" />
+                  </button>
+                </span>
+              )}
+            </div>
+
+            {showBrands && (
+              <div className="mt-3 border border-[#E1E3DD] rounded-xl bg-white p-3">
+                <BrandStrip
+                  brands={brands}
+                  loading={brandsLoading}
+                  error={brandsError}
+                  selectedBrand={brand}
+                  onSelect={handleBrandSelect}
+                />
+              </div>
             )}
           </div>
 
-          {showBrands && (
-            <div className="mt-3 border border-[#E1E3DD] rounded-xl bg-white p-3">
-              <BrandStrip
-                brands={brands}
-                loading={brandsLoading}
-                error={brandsError}
-                selectedBrand={brand}
-                onSelect={handleBrandSelect}
-              />
+          {/* Price */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={handleTogglePrice}
+                aria-expanded={showPrice}
+                className={`inline-flex items-center gap-1.5 rounded-full border text-[13px] font-medium px-3.5 py-2 transition-colors duration-150 ${
+                  showPrice
+                    ? "border-[#FF5630] text-[#FF5630] bg-[#FFF1EE]"
+                    : "border-[#E1E3DD] text-[#14171C] hover:border-[#FF5630]"
+                }`}
+              >
+                <IconRupee />
+                Price
+                <IconChevronDown className={`transition-transform duration-150 ${showPrice ? "rotate-180" : ""}`} />
+              </button>
+
+              {priceChipLabel && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF5630] text-white text-[12.5px] font-medium pl-3 pr-1.5 py-1.5">
+                  {priceChipLabel}
+                  <button
+                    onClick={handleClearPrice}
+                    aria-label="Clear price filter"
+                    className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center"
+                  >
+                    <IconClose width="10" height="10" />
+                  </button>
+                </span>
+              )}
             </div>
-          )}
+
+            {showPrice && (
+              <div className="mt-3 border border-[#E1E3DD] rounded-xl bg-white p-3">
+                <PricePresetStrip presets={pricePresets} selectedPreset={selectedPreset} onSelect={handlePricePresetSelect} />
+              </div>
+            )}
+          </div>
         </div>
       )}
 

@@ -11,6 +11,13 @@
 // 2. Only the category tabs are sticky now. Brand strip, price strip, and
 //    the filter/sort row scroll normally with the page — previously all
 //    four rows were pinned together and ate most of the viewport.
+// 3. Price presets are now category-aware: Power Bank / Charger / Headphones
+//    use a tight budget ladder (Under 1k, 1k–1.5k, 1.5k–2k, 2k+) since those
+//    products live in a much lower price band than phones. Phones (and any
+//    other category) keep the original 8k–22k+ ladder. Chip styling has
+//    also been polished — softer active-state glow, tap-scale feedback, and
+//    a scroll-snap strip so it feels considered at every breakpoint instead
+//    of just a horizontally-clipped row on mobile.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -49,9 +56,43 @@ const IconChevronDown = (props) => (
 /* ---------------------------------------------------------------------- */
 /* Price presets                                                          */
 /* ---------------------------------------------------------------------- */
-// Edit this list to move the whole ladder. Kept as flat numbers (not
-// formatted strings) so min/max travel straight into the query params.
-const PRICE_PRESETS = [
+// Two ladders. Which one shows up is decided by getPricePresets() below,
+// keyed off the active category. Edit either list to move its ladder, or
+// add more category keys to BUDGET_CATEGORY_MATCHERS to route them onto
+// the budget ladder instead of the phone one.
+
+const formatINR = (n) => `\u20B9${n.toLocaleString("en-IN")}`;
+
+// Default sort — price low to high. Rather than hardcoding a guessed value
+// string, this looks through the real sortOptions (from
+// categoryfilterfields.js) for the low-to-high entry, matching on label
+// text ("low"..."high") or common value spellings (price_asc, price-asc,
+// priceAsc, asc). Falls back to "price_asc" only if nothing matches, so if
+// sortOptions doesn't have a low-to-high entry at all this won't silently
+// select the wrong thing without a console warning.
+const findLowToHighSortValue = (options) => {
+  if (!Array.isArray(options)) return null;
+  const match = options.find((o) => {
+    const label = String(o.label || "").toLowerCase();
+    const value = String(o.value || "").toLowerCase();
+    if (label.includes("low") && label.includes("high")) return true;
+    if (value.replace(/[-_\s]/g, "").includes("priceasc")) return true;
+    if (value.includes("price") && value.includes("asc")) return true;
+    return false;
+  });
+  return match ? match.value : null;
+};
+
+const DEFAULT_SORT = findLowToHighSortValue(sortOptions) || "price_asc";
+if (!findLowToHighSortValue(sortOptions)) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    "[ShopPage] Couldn't find a low-to-high option in sortOptions — defaulting to \"price_asc\". Check the value string in categoryfilterfields.js."
+  );
+}
+
+// Phones (and anything not matched below) — original ladder, unchanged.
+const PHONE_PRICE_PRESETS = [
   { label: "8k–10k", min: 8000, max: 10000 },
   { label: "10k–12k", min: 10000, max: 12000 },
   { label: "12k–14k", min: 12000, max: 14000 },
@@ -62,27 +103,56 @@ const PRICE_PRESETS = [
   { label: "22k+", min: 22000, max: undefined },
 ];
 
-const formatINR = (n) => `\u20B9${n.toLocaleString("en-IN")}`;
+// Power bank / charger / headphones — tighter budget ladder: below 1000,
+// then 500-wide steps up to 2000, then an open-ended 2000+ band.
+const BUDGET_PRICE_PRESETS = [
+  { label: `Under ${formatINR(1000)}`, min: 0, max: 1000 },
+  { label: `${formatINR(1000)}–${formatINR(1500)}`, min: 1000, max: 1500 },
+  { label: `${formatINR(1500)}–${formatINR(2000)}`, min: 1500, max: 2000 },
+  { label: `${formatINR(2000)}+`, min: 2000, max: undefined },
+];
 
-// A plain pill — coral fill/border when selected, otherwise neutral.
-// Same font as the rest of the UI; no separate "price tag" visual gimmick.
+// Category keys/labels that should use the budget ladder instead of the
+// phone ladder. Matched case-insensitively against both the category `key`
+// and `label` so this keeps working regardless of exact casing/slug used
+// in categoryfilterfields.js.
+const BUDGET_CATEGORY_MATCHERS = [
+  "powerbank",
+  "power-bank",
+  "power bank",
+  "charger",
+  "headphone",
+  "earphone",
+];
+
+const getPricePresets = (categoryKey) => {
+  const cat = CATEGORIES.find((c) => c.key === categoryKey);
+  const haystack = `${categoryKey || ""} ${cat?.label || ""}`.toLowerCase();
+  const isBudgetCategory = BUDGET_CATEGORY_MATCHERS.some((m) => haystack.includes(m));
+  return isBudgetCategory ? BUDGET_PRICE_PRESETS : PHONE_PRICE_PRESETS;
+};
+
+// A plain pill — coral fill/glow when selected, otherwise neutral. Same
+// font as the rest of the UI; scales down slightly on tap for tactile
+// feedback and picks up a soft coral glow instead of a flat border when
+// active, so the "selected" state reads clearly at any screen size.
 const PricePresetChip = ({ preset, isSelected, onSelect }) => (
   <button
     onClick={() => onSelect(isSelected ? null : preset)}
     aria-pressed={isSelected}
-    className={`shrink-0 px-3.5 py-1.5 rounded-full border text-[13px] font-medium transition-colors duration-150 whitespace-nowrap ${
+    className={`snap-start shrink-0 px-4 py-2 sm:px-3.5 sm:py-1.5 rounded-full border text-[13px] font-medium transition-all duration-150 whitespace-nowrap active:scale-95 ${
       isSelected
-        ? "bg-[#FF5630] border-[#FF5630] text-white"
-        : "bg-white border-[#E5E7EA] text-[#4B4F57] hover:border-[#FF5630]/60 hover:text-[#14171C]"
+        ? "bg-[#FF5630] border-[#FF5630] text-white shadow-[0_4px_14px_-2px_rgba(255,86,48,0.45)]"
+        : "bg-white border-[#E5E7EA] text-[#4B4F57] hover:border-[#FF5630]/60 hover:text-[#14171C] hover:shadow-sm"
     }`}
   >
     {preset.label}
   </button>
 );
 
-const PricePresetStrip = ({ selectedPreset, onSelect }) => (
-  <div className="flex items-center gap-2 overflow-x-auto pb-1">
-    {PRICE_PRESETS.map((p) => {
+const PricePresetStrip = ({ presets, selectedPreset, onSelect }) => (
+  <div className="flex items-center gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scroll-smooth [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    {presets.map((p) => {
       const isSelected =
         selectedPreset && selectedPreset.min === p.min && selectedPreset.max === p.max;
       return <PricePresetChip key={p.label} preset={p} isSelected={isSelected} onSelect={onSelect} />;
@@ -206,20 +276,23 @@ const ShopPage = () => {
 
   const category = searchParams.get("category") || "";
   const search = searchParams.get("search") || "";
-  const sort = searchParams.get("sort") || "newest";
+  const sort = searchParams.get("sort") || DEFAULT_SORT;
   const page = Number(searchParams.get("page")) || 1;
   const brand = searchParams.get("brand") || "";
   const minPrice = searchParams.get("minPrice");
   const maxPrice = searchParams.get("maxPrice");
 
+  // Which price ladder applies to the active category.
+  const pricePresets = useMemo(() => getPricePresets(category), [category]);
+
   const selectedPreset = useMemo(() => {
     if (!minPrice) return null;
     return (
-      PRICE_PRESETS.find(
+      pricePresets.find(
         (p) => String(p.min) === minPrice && String(p.max || "") === (maxPrice || "")
       ) || null
     );
-  }, [minPrice, maxPrice]);
+  }, [pricePresets, minPrice, maxPrice]);
 
   // Everything in the URL except params with their own dedicated control.
   const filters = useMemo(() => {
@@ -240,6 +313,10 @@ const ShopPage = () => {
     setError("");
     try {
       const params = Object.fromEntries(searchParams.entries());
+      // If the URL has no explicit sort, the request still needs one --
+      // otherwise the backend falls back to its own default instead of
+      // opening on low-to-high price.
+      if (!params.sort) params.sort = DEFAULT_SORT;
       const res = await API.get("/api/v1/products/search", {
         params: { ...params, limit: 20 },
         withCredentials: true,
@@ -315,7 +392,7 @@ const ShopPage = () => {
     const next = new URLSearchParams();
     if (newCategory) next.set("category", newCategory);
     if (search) next.set("search", search);
-    if (sort !== "newest") next.set("sort", sort);
+    if (sort !== DEFAULT_SORT) next.set("sort", sort);
     setSearchParams(next);
     setMobileFiltersOpen(false);
   };
@@ -324,7 +401,7 @@ const ShopPage = () => {
     const next = new URLSearchParams();
     if (category) next.set("category", category);
     if (search) next.set("search", search);
-    if (sort !== "newest") next.set("sort", sort);
+    if (sort !== DEFAULT_SORT) next.set("sort", sort);
     if (brand) next.set("brand", brand);
     if (minPrice) next.set("minPrice", minPrice);
     if (maxPrice) next.set("maxPrice", maxPrice);
@@ -444,7 +521,7 @@ const ShopPage = () => {
                   ))}
                 </div>
               ) : (
-                <PricePresetStrip selectedPreset={selectedPreset} onSelect={handlePricePresetSelect} />
+                <PricePresetStrip presets={pricePresets} selectedPreset={selectedPreset} onSelect={handlePricePresetSelect} />
               )}
             </div>
           </div>
@@ -512,7 +589,7 @@ const ShopPage = () => {
               <div className="overflow-y-auto px-5 py-4 flex-1">
                 <SectionLabel>Price</SectionLabel>
                 <div className="mt-2 mb-5">
-                  <PricePresetStrip selectedPreset={selectedPreset} onSelect={handlePricePresetSelect} />
+                  <PricePresetStrip presets={pricePresets} selectedPreset={selectedPreset} onSelect={handlePricePresetSelect} />
                 </div>
                 <DynamicFilterSidebar category={category} filters={filters} onFilterChange={handleFilterChange} />
               </div>
