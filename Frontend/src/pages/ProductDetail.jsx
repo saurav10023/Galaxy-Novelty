@@ -18,6 +18,12 @@
 // overlapped the info column instead of sitting beside it. Plain flexbox
 // with an explicit pixel height on the image well is used instead --
 // it degrades predictably with no dependency on grid-template parsing.
+//
+// VISUAL NOTE: restyled to Light Glass Tech (see design-language.md) --
+// glass panels (white/70-80 + backdrop-blur), fuchsia/cyan gradient price
+// and active states, mono labels/spec values, semantic emerald/amber/rose
+// for stock status. Only colors, surfaces, and type were touched; the
+// flexbox layout above is untouched on purpose.
 
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
@@ -124,18 +130,19 @@ const IconMaximize = (props) => (
 );
 
 /* ---------------------------------------------------------------------- */
-/* Skeleton (shimmer, matching ShopPage's animation)                      */
+/* Skeleton (shimmer, glass tone)                                          */
 /* ---------------------------------------------------------------------- */
 
 const Shimmer = ({ className = "" }) => (
-  <div className={`relative overflow-hidden bg-[#F1F1EE] ${className}`}>
-    <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+  <div className={`relative overflow-hidden bg-gradient-to-br from-fuchsia-50 via-slate-100 to-cyan-50 ${className}`}>
+    <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/70 to-transparent" />
   </div>
 );
 
 const DetailSkeleton = () => (
   <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-8">
-    <Shimmer className="h-4 w-28 rounded mb-6" />
+    <style>{`@keyframes shimmer { 100% { transform: translateX(100%); } }`}</style>
+    <Shimmer className="h-4 w-28 rounded-full mb-6" />
     <div className="flex flex-col md:flex-row gap-4 md:gap-8">
       <div className="hidden md:flex flex-col gap-3 w-16 shrink-0">
         {Array.from({ length: 4 }).map((_, i) => (
@@ -144,10 +151,10 @@ const DetailSkeleton = () => (
       </div>
       <Shimmer className="rounded-2xl w-full md:w-[46%] h-[320px] sm:h-[400px] lg:h-[460px] shrink-0" />
       <div className="flex-1 min-w-0">
-        <Shimmer className="h-3 w-24 rounded mb-3" />
-        <Shimmer className="h-6 w-3/4 rounded mb-3" />
-        <Shimmer className="h-8 w-1/3 rounded mb-5" />
-        <Shimmer className="h-16 w-full rounded mb-4" />
+        <Shimmer className="h-3 w-24 rounded-full mb-3" />
+        <Shimmer className="h-6 w-3/4 rounded-full mb-3" />
+        <Shimmer className="h-8 w-1/3 rounded-full mb-5" />
+        <Shimmer className="h-16 w-full rounded-xl mb-4" />
         <Shimmer className="h-14 w-full rounded-xl" />
       </div>
     </div>
@@ -160,7 +167,7 @@ const DetailSkeleton = () => (
 
 const Lightbox = ({ src, alt, onClose }) => (
   <div
-    className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 fade-in"
+    className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 fade-in"
     onClick={onClose}
     role="dialog"
     aria-modal="true"
@@ -168,7 +175,7 @@ const Lightbox = ({ src, alt, onClose }) => (
     <button
       onClick={onClose}
       aria-label="Close"
-      className="absolute top-4 right-4 sm:top-6 sm:right-6 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center border border-white/20"
+      className="absolute top-4 right-4 sm:top-6 sm:right-6 w-9 h-9 rounded-full bg-white/10 hover:bg-fuchsia-500/25 text-white flex items-center justify-center border border-white/20 transition-colors duration-150"
     >
       ✕
     </button>
@@ -234,15 +241,15 @@ const ProductDetail = () => {
   if (error || !product) {
     return (
       <div className="max-w-5xl mx-auto px-6 md:px-10 py-20 text-center">
-        <div className="w-14 h-14 rounded-full bg-[#F6F7F3] border border-[#E5E7EA] flex items-center justify-center mx-auto mb-4 text-[#9CA0A6]">
+        <div className="w-14 h-14 rounded-full bg-white/80 backdrop-blur-md border border-slate-200 flex items-center justify-center mx-auto mb-4 text-slate-400 shadow-[0_2px_10px_-2px_rgba(15,23,42,0.1)]">
           <IconImageOff />
         </div>
-        <p className="text-[15px] text-[#14171C] font-medium mb-2">
+        <p className="text-[15px] text-slate-900 font-medium mb-2">
           {error || "Product not found."}
         </p>
         <Link
           to="/shop"
-          className="inline-flex items-center gap-1.5 mt-2 text-[13.5px] font-medium text-[#2F5DFF] hover:underline"
+          className="inline-flex items-center gap-1.5 mt-2 text-[13.5px] font-medium text-fuchsia-600 hover:text-fuchsia-700 transition-colors duration-150"
         >
           <IconArrowLeft />
           Back to shop
@@ -280,22 +287,22 @@ const ProductDetail = () => {
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 mb-4 md:mb-6 text-[13px]">
-        <Link to="/shop" className="text-[#4B4F57] hover:text-[#14171C] transition-colors">
+        <Link to="/shop" className="text-slate-500 hover:text-fuchsia-600 transition-colors duration-150">
           Shop
         </Link>
         {product.category && (
           <>
-            <span className="text-[#D8DADD]">/</span>
+            <span className="text-slate-300">/</span>
             <Link
               to={`/shop?category=${product.category}`}
-              className="text-[#4B4F57] hover:text-[#14171C] transition-colors capitalize"
+              className="text-slate-500 hover:text-fuchsia-600 transition-colors duration-150 capitalize"
             >
               {product.category}
             </Link>
           </>
         )}
-        <span className="text-[#D8DADD]">/</span>
-        <span className="text-[#9CA0A6] truncate max-w-[160px] sm:max-w-xs">{product.name}</span>
+        <span className="text-slate-300">/</span>
+        <span className="text-slate-400 truncate max-w-[160px] sm:max-w-xs">{product.name}</span>
       </div>
 
       {/* Main layout: plain flex row on desktop, stacked on mobile.
@@ -310,10 +317,10 @@ const ProductDetail = () => {
                 type="button"
                 onClick={() => setActiveImage(i)}
                 aria-label={`View image ${i + 1}`}
-                className={`w-16 h-16 rounded-lg overflow-hidden border-2 bg-[#F6F7F3] transition-all duration-150 ${
+                className={`w-16 h-16 rounded-xl overflow-hidden border-2 bg-white/80 backdrop-blur-md transition-all duration-150 ${
                   i === activeImage
-                    ? "border-[#2F5DFF] shadow-[0_0_0_3px_rgba(47,93,255,0.12)]"
-                    : "border-[#E5E7EA] opacity-70 hover:opacity-100 hover:border-[#D8DADD]"
+                    ? "border-fuchsia-400 shadow-[0_0_0_3px_rgba(217,70,239,0.15)]"
+                    : "border-slate-200 opacity-70 hover:opacity-100 hover:border-fuchsia-200"
                 }`}
               >
                 <img src={img.url} alt="" className="w-full h-full object-contain p-1" />
@@ -335,7 +342,7 @@ const ProductDetail = () => {
                 setLightboxOpen(true);
               }
             }}
-            className="group relative w-full h-[320px] sm:h-[400px] lg:h-[460px] rounded-2xl bg-gradient-to-b from-[#FAFAF8] to-[#F1F2EE] border border-[#E5E7EA] overflow-hidden cursor-zoom-in flex items-center justify-center"
+            className="group relative w-full h-[320px] sm:h-[400px] lg:h-[460px] rounded-2xl bg-gradient-to-b from-white via-fuchsia-50/40 to-cyan-50/40 border border-slate-200 overflow-hidden cursor-zoom-in flex items-center justify-center"
           >
             {images[activeImage]?.url ? (
               <>
@@ -352,20 +359,21 @@ const ProductDetail = () => {
                     setLightboxOpen(true);
                   }}
                   aria-label="View full image"
-                  className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-white/95 border border-[#E5E7EA] flex items-center justify-center text-[#4B4F57] hover:bg-white hover:text-[#14171C] shadow-sm opacity-0 group-hover:opacity-100 md:opacity-90 transition-opacity"
+                  className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur-md border border-slate-200 flex items-center justify-center text-slate-500 hover:text-fuchsia-600 hover:border-fuchsia-300 shadow-sm opacity-0 group-hover:opacity-100 md:opacity-90 transition-all duration-150"
                 >
                   <IconMaximize />
                 </button>
               </>
             ) : (
-              <div className="flex flex-col items-center justify-center gap-2 text-[#9CA0A6]">
+              <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
                 <IconImageOff />
                 <span className="text-[12px]">No image available</span>
               </div>
             )}
 
             {!product.isActive && (
-              <span className="absolute top-3 left-3 rounded-full bg-black/70 backdrop-blur text-white text-[11px] font-medium px-2.5 py-1">
+              <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-slate-900/75 backdrop-blur-md text-white text-[11px] font-medium px-2.5 py-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
                 Currently unavailable
               </span>
             )}
@@ -379,7 +387,7 @@ const ProductDetail = () => {
                     setActiveImage((p) => (p === 0 ? images.length - 1 : p - 1));
                   }}
                   aria-label="Previous image"
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 border border-[#E5E7EA] flex items-center justify-center text-[#14171C] hover:bg-white shadow-sm"
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-md border border-slate-200 flex items-center justify-center text-slate-900 hover:border-fuchsia-300 hover:text-fuchsia-600 shadow-sm transition-colors duration-150"
                 >
                   <IconChevronLeft />
                 </button>
@@ -390,11 +398,11 @@ const ProductDetail = () => {
                     setActiveImage((p) => (p === images.length - 1 ? 0 : p + 1));
                   }}
                   aria-label="Next image"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 border border-[#E5E7EA] flex items-center justify-center text-[#14171C] hover:bg-white shadow-sm"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-md border border-slate-200 flex items-center justify-center text-slate-900 hover:border-fuchsia-300 hover:text-fuchsia-600 shadow-sm transition-colors duration-150"
                 >
                   <IconChevronRight />
                 </button>
-                <span className="absolute bottom-3 left-3 rounded-full bg-black/60 backdrop-blur text-white text-[11px] font-medium px-2 py-0.5">
+                <span className="absolute bottom-3 left-3 rounded-full bg-slate-900/70 backdrop-blur-md text-white text-[11px] font-mono font-medium px-2 py-0.5">
                   {activeImage + 1} / {images.length}
                 </span>
               </>
@@ -409,8 +417,8 @@ const ProductDetail = () => {
                   key={img.publicId || i}
                   type="button"
                   onClick={() => setActiveImage(i)}
-                  className={`shrink-0 w-[54px] h-[54px] rounded-lg overflow-hidden border-2 bg-[#F6F7F3] transition-colors ${
-                    i === activeImage ? "border-[#2F5DFF]" : "border-[#E5E7EA]"
+                  className={`shrink-0 w-[54px] h-[54px] rounded-xl overflow-hidden border-2 bg-white/80 backdrop-blur-md transition-colors duration-150 ${
+                    i === activeImage ? "border-fuchsia-400" : "border-slate-200"
                   }`}
                 >
                   <img src={img.url} alt="" className="w-full h-full object-contain p-1" />
@@ -425,30 +433,30 @@ const ProductDetail = () => {
             source of overlap; a top margin is used instead. */}
         <div className="w-full flex-1 min-w-0 mt-1 md:mt-0">
           {product.brand && (
-            <p className="text-[12px] font-medium text-[#9CA0A6] uppercase tracking-wide mb-1">
+            <p className="font-mono text-[11px] font-medium text-slate-400 uppercase tracking-[0.14em] mb-1">
               {product.brand}
             </p>
           )}
-          <h1 className="font-display text-[19px] sm:text-[23px] font-semibold text-[#14171C] tracking-tight leading-snug">
+          <h1 className="font-display text-[19px] sm:text-[23px] font-semibold text-slate-900 tracking-tight leading-snug">
             {product.name}
           </h1>
 
           <div className="flex items-center gap-2.5 mt-2.5 flex-wrap">
-            <p className="text-[24px] font-semibold text-[#FF5630]">
+            <p className="font-mono text-[24px] font-bold bg-gradient-to-r from-fuchsia-600 to-cyan-600 bg-clip-text text-transparent">
               {formatINR(product.pricing?.sellingPrice)}
             </p>
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono uppercase tracking-wide border ${
                 inStock
                   ? lowStock
-                    ? "bg-[#FAEEDA] text-[#854F0B]"
-                    : "bg-[#EAF3DE] text-[#3B6D11]"
-                  : "bg-[#FBEAE7] text-[#C0402E]"
+                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-rose-50 text-rose-700 border-rose-200"
               }`}
             >
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
-                  inStock ? (lowStock ? "bg-[#EF9F27]" : "bg-[#639922]") : "bg-[#C0402E]"
+                  inStock ? (lowStock ? "bg-amber-500" : "bg-emerald-500") : "bg-rose-500"
                 }`}
               />
               {inStock
@@ -462,17 +470,17 @@ const ProductDetail = () => {
           {/* Admin-only pricing -- only renders if the backend actually sent
               these fields, i.e. the requester was authenticated as admin */}
           {product.pricing?.purchasePrice !== undefined && (
-            <div className="mt-3 rounded-lg bg-[#F6F7F3] border border-[#E5E7EA] px-3.5 py-2.5 text-[12.5px] text-[#4B4F57] space-y-1">
+            <div className="mt-3 rounded-xl bg-white/70 backdrop-blur-md border border-slate-200 px-3.5 py-2.5 text-[12.5px] text-slate-500 space-y-1">
               <p className="flex justify-between">
-                <span className="text-[#9CA0A6]">Purchase price</span>
-                <span className="font-medium text-[#14171C]">
+                <span className="font-mono uppercase tracking-wide text-[11px] text-slate-400">Purchase price</span>
+                <span className="font-mono font-medium text-slate-900">
                   {formatINR(product.pricing.purchasePrice)}
                 </span>
               </p>
               {product.pricing?.negotiation && (
                 <p className="flex justify-between">
-                  <span className="text-[#9CA0A6]">Negotiation range</span>
-                  <span className="font-medium text-[#14171C]">
+                  <span className="font-mono uppercase tracking-wide text-[11px] text-slate-400">Negotiation range</span>
+                  <span className="font-mono font-medium text-slate-900">
                     {formatINR(product.pricing.negotiation.minPrice)} – {formatINR(product.pricing.negotiation.maxPrice)}
                   </span>
                 </p>
@@ -481,20 +489,20 @@ const ProductDetail = () => {
           )}
 
           {product.description && (
-            <p className="text-[13px] leading-relaxed text-[#4B4F57] mt-3.5">
+            <p className="text-[13px] leading-relaxed text-slate-500 mt-3.5">
               {product.description}
             </p>
           )}
 
           {/* Warranty & service — this is a catalog, not a storefront, so the
               only "next step" info shown is where warranty work happens */}
-          <div className="flex items-start gap-2.5 mt-4 rounded-xl border border-[#E5E7EA] px-3.5 py-3 bg-[#F6F7F3]">
-            <span className="text-[#639922] mt-0.5 shrink-0">
+          <div className="flex items-start gap-2.5 mt-4 rounded-2xl border border-slate-200 px-3.5 py-3 bg-white/70 backdrop-blur-md">
+            <span className="text-emerald-500 mt-0.5 shrink-0">
               <IconShield />
             </span>
             <div>
-              <p className="text-[12.5px] font-medium text-[#14171C]">Warranty service</p>
-              <p className="text-[11.5px] text-[#9CA0A6] mt-0.5 leading-snug">
+              <p className="text-[12.5px] font-medium text-slate-900">Warranty service</p>
+              <p className="text-[11.5px] text-slate-400 mt-0.5 leading-snug">
                 Warranty support is handled only at our authorized service centre.
               </p>
             </div>
@@ -502,18 +510,18 @@ const ProductDetail = () => {
 
           {/* Spec card */}
           {visibleSpecs.length > 0 && (
-            <div className="mt-4 rounded-xl border border-[#E5E7EA] px-4 py-1">
-              <h3 className="text-[10px] font-mono font-semibold uppercase tracking-[0.08em] text-[#9CA0A6] pt-3 pb-1">
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white/70 backdrop-blur-md px-4 py-1">
+              <h3 className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 pt-3 pb-1">
                 Specifications
               </h3>
               <dl>
                 {visibleSpecs.map(([key, label]) => (
                   <div
                     key={key}
-                    className="flex items-center justify-between py-2 border-t border-[#F1F1EE]"
+                    className="flex items-center justify-between py-2 border-t border-slate-100"
                   >
-                    <dt className="text-[12.5px] text-[#9CA0A6]">{label}</dt>
-                    <dd className="text-[12.5px] font-medium text-[#14171C] text-right">
+                    <dt className="text-[12.5px] text-slate-400">{label}</dt>
+                    <dd className="font-mono text-[12.5px] font-medium text-slate-900 text-right">
                       {formatValue(product[key])}
                     </dd>
                   </div>

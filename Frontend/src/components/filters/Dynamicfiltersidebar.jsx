@@ -8,16 +8,23 @@
 // backend ever returns an array for a "select" field's key, we prefer it
 // over the hardcoded list automatically, so this component keeps working
 // either way.
+//
+// Restyled to Light Glass Tech: glass inputs (white/80 + backdrop-blur),
+// fuchsia focus ring instead of the old solid blue border, fuchsia accent
+// checkbox, mono uppercase field labels. Used both in ShopPage's desktop
+// sidebar and inside its mobile filter sheet, so it needed to match the
+// glass surface used in both places rather than sitting as a flat-white
+// island inside either.
 
 import { useEffect, useState } from "react";
 import API from "../../api/axios";
 import { categoryFilterFields } from "../../config/categoryfilterfields";
 
 const inputBase =
-  "font-mono text-[13px] bg-white border border-[#E1E3DD] rounded-lg px-3 py-2 text-[#14171C] focus:outline-none focus:border-[#2F5DFF] w-full";
+  "font-mono text-[13px] bg-white/80 backdrop-blur-md border border-slate-200 rounded-xl px-3 py-2 text-slate-900 transition-colors duration-150 hover:border-fuchsia-200 focus:outline-none focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100 w-full";
 
 const FieldLabel = ({ children }) => (
-  <h4 className="font-mono text-[10.5px] uppercase tracking-wider text-[#9CA0A6] mb-2">
+  <h4 className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-slate-400 mb-2">
     {children}
   </h4>
 );
@@ -42,12 +49,12 @@ const SelectField = ({ field, value, options, onChange }) => (
 
 const CheckboxField = ({ field, value, onChange }) => (
   <div className="filter-group mb-5">
-    <label className="flex items-center gap-2 text-[13.5px] text-[#14171C] cursor-pointer">
+    <label className="flex items-center gap-2 text-[13.5px] text-slate-900 cursor-pointer">
       <input
         type="checkbox"
         checked={value === "true"}
         onChange={(e) => onChange(field.key, e.target.checked ? "true" : undefined)}
-        className="w-4 h-4 rounded border-[#E1E3DD] accent-[#2F5DFF]"
+        className="w-4 h-4 rounded border-slate-300 accent-fuchsia-500"
       />
       {field.label}
     </label>
@@ -65,7 +72,7 @@ const RangeField = ({ field, values, onChange }) => (
         onChange={(e) => onChange(field.minKey, e.target.value || undefined)}
         className={inputBase}
       />
-      <span className="text-[#9CA0A6] text-[13px]">–</span>
+      <span className="text-slate-300 text-[13px]">–</span>
       <input
         type="number"
         placeholder="Max"
@@ -119,11 +126,11 @@ const DynamicFilterSidebar = ({ category, filters, onFilterChange }) => {
   return (
     <div className="filter-sidebar w-full md:w-64 shrink-0">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-display text-[15px] font-semibold text-[#14171C]">Filters</h3>
+        <h3 className="font-display text-[15px] font-semibold text-slate-900">Filters</h3>
         {activeCount > 0 && (
           <button
             onClick={handleReset}
-            className="text-[12.5px] font-medium text-[#2F5DFF] hover:underline"
+            className="text-[12.5px] font-medium text-fuchsia-600 hover:text-fuchsia-700 hover:underline"
           >
             Clear all
           </button>
@@ -141,7 +148,7 @@ const DynamicFilterSidebar = ({ category, filters, onFilterChange }) => {
             onChange={(e) => handleFieldChange("minPrice", e.target.value || undefined)}
             className={inputBase}
           />
-          <span className="text-[#9CA0A6] text-[13px]">–</span>
+          <span className="text-slate-300 text-[13px]">–</span>
           <input
             type="number"
             placeholder="Max"
@@ -153,7 +160,7 @@ const DynamicFilterSidebar = ({ category, filters, onFilterChange }) => {
       </div>
 
       {loadingOptions ? (
-        <p className="text-[12.5px] text-[#9CA0A6]">Loading filters…</p>
+        <p className="text-[12.5px] text-slate-400">Loading filters…</p>
       ) : (
         fields.map((field) => {
           if (field.type === "range") {

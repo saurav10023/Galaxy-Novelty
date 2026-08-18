@@ -10,9 +10,12 @@ import { verifyjwt } from "../middlewares/auth.middleware.js";
 import { verifyAdmin } from "../middlewares/authAdmin.middleware.js";
 import { optionalAuth } from "../middlewares/optionalAuth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
+import { getBrandDistribution, getInventoryOverview, getPriceDistribution } from "../controllers/analytics.controller.js";
 
 const router = Router();
-
+router.get("/analytics/overview", verifyjwt, getInventoryOverview);
+router.get("/analytics/brands", verifyjwt, getBrandDistribution);
+router.get("/analytics/price-distribution", verifyjwt, getPriceDistribution);
 // specific routes FIRST — public, but admin-aware
 router.route("/search").get(optionalAuth, searchProducts);
 router.route("/filters/:category").get(getAvailableFilters);

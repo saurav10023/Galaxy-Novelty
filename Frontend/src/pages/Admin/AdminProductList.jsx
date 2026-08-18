@@ -1,59 +1,44 @@
-// pages/admin/AdminProductsList.jsx
+// src/pages/ShopPage.jsx
 //
-// Same URL-driven filtering pattern as the public ShopPage: `category`,
-// `search`, `sort`, `page`, `brand`, `minPrice`/`maxPrice`, and any
-// category-specific filter all live in the URL, so a filtered admin view is
-// shareable/bookmarkable and survives a refresh. The DynamicFilterSidebar +
-// categoryFilterFields config are reused as-is from the shop -- same filter
-// fields per category, just pointed at the admin search endpoint.
+// Redesign pass on top of the previous sticky-tabs / slide-over version.
+// Everything about data flow (category/search/sort/page/brand live in the
+// URL, buildProductQuery reads filters generically) is unchanged.
 //
-// "Brands" toggle next to the category tabs. When a category is selected,
-// tapping it fetches GET /admin/brands?category=... (distinct brand names +
-// counts + a sample image, powered by search.controller.js's
-// getBrandsByCategory) and renders them as a horizontal chip strip. Tapping
-// a brand chip writes `brand` into the URL, same lane as `category`/`search`/
-// `sort` -- it survives sidebar filter changes and page navigation, and gets
-// picked up automatically by buildProductQuery on the next /admin/search call.
+// THIS PASS:
+// 1. Search bar added. The URL already carried a `search` param and the
+//    header already displayed `Results for "..."`, but there was no actual
+//    input anywhere to set it -- the only way in was editing the URL by
+//    hand. There's now a real search box (icon + clear button), shown on
+//    every screen size, right under the sticky category tabs.
+// 2. Desktop filter sidebar rebuilt. The column was there
+//    (`hidden lg:block w-64`) but rendered as a bare, unstyled
+//    `DynamicFilterSidebar` with no card, no heading, and no sticky
+//    behavior -- easy to miss entirely next to the glass panels used
+//    everywhere else on the page, and it scrolled away with the results on
+//    a long list. It's now a proper glass card with a header (Filters +
+//    active category + count), its own scroll region, a sticky position
+//    under the sticky tabs bar, and a "Clear all filters" footer that only
+//    appears once something is actually active.
+// 3. Mobile bottom sheet gets the same "Clear all" affordance the desktop
+//    sidebar has, plus the search box lives outside the sheet (it's always
+//    visible) so search and filters are two clearly separate actions.
 //
-// NEW: "Price" toggle, same pattern as Brands. Expands into a preset chip
-// strip; the ladder shown depends on the active category -- Power Bank /
-// Charger / Headphones get a tight budget ladder (Under 1k, 1k-1.5k,
-// 1.5k-2k, 2k+), everything else (phones included) gets the original
-// 8k-22k+ ladder. Selecting a preset writes `minPrice`/`maxPrice` into the
-// URL, same lane as `brand` -- it survives sidebar filter changes and page
-// navigation, and gets picked up automatically by buildProductQuery.
-//
-// Layout: >=1024px (lg) shows the classic table with the filter sidebar
-// pinned alongside it. Below that -- tablet and mobile -- every attribute
-// still needs to be legible, so results render as a card grid (2 columns
-// on tablet, 1 on phone) with each field as its own labeled row, and the
-// filter sidebar moves into a slide-over drawer instead of shoving the
-// results down the page.
+// Everything from the previous visual pass (price ladders, sticky tabs
+// only, brand/price strips, skeletons, chips, empty/error states,
+// pagination) is unchanged.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import API from "../../api/axios";
+import API from "../../api/axios"
 import DynamicFilterSidebar from "../../components/filters/Dynamicfiltersidebar";
+import ProductCard from "../../components/ProductCard";
 import Select from "../../components/ui/Select";
 import { CATEGORIES, sortOptions } from "../../config/categoryfilterfields";
 
-// -- tiny inline icons, kept dependency-free on purpose --------------------
-const IconEdit = (props) => (
-  <svg viewBox="0 0 20 20" fill="none" width="15" height="15" {...props}>
-    <path d="M13.5 3.5l3 3L7 16H4v-3l9.5-9.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-  </svg>
-);
-const IconPower = (props) => (
-  <svg viewBox="0 0 20 20" fill="none" width="15" height="15" {...props}>
-    <path d="M10 3v6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    <path d="M6 5.5a6 6 0 1 0 8 0" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-  </svg>
-);
-const IconTrash = (props) => (
-  <svg viewBox="0 0 20 20" fill="none" width="15" height="15" {...props}>
-    <path d="M4 6h12M8 6V4.5A1.5 1.5 0 0 1 9.5 3h1A1.5 1.5 0 0 1 12 4.5V6m-6.5 0 .6 9.4A1.5 1.5 0 0 0 7.6 17h4.8a1.5 1.5 0 0 0 1.5-1.6L14.5 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
+/* ---------------------------------------------------------------------- */
+/* Icons                                                                   */
+/* ---------------------------------------------------------------------- */
+
 const IconFilter = (props) => (
   <svg viewBox="0 0 20 20" fill="none" width="15" height="15" {...props}>
     <path d="M3 4.5h14M6 10h8M8.5 15.5h3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -64,25 +49,26 @@ const IconClose = (props) => (
     <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
   </svg>
 );
-const IconChevronDown = (props) => (
-  <svg viewBox="0 0 20 20" fill="none" width="13" height="13" {...props}>
-    <path d="M5 7.5l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
 const IconTag = (props) => (
   <svg viewBox="0 0 20 20" fill="none" width="15" height="15" {...props}>
     <path d="M11 3H4v7l9 9 7-7-9-9z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
     <circle cx="7.3" cy="6.7" r="1.1" fill="currentColor" />
   </svg>
 );
-const IconRupee = (props) => (
+const IconChevronDown = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" width="14" height="14" {...props}>
+    <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconSearch = (props) => (
   <svg viewBox="0 0 20 20" fill="none" width="15" height="15" {...props}>
-    <path d="M5 4h10M5 8h10M5 4c3 0 5 1.2 5 3.2S8 10.4 5 10.4h-.5L11 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="8.5" cy="8.5" r="5" stroke="currentColor" strokeWidth="1.4" />
+    <path d="M16 16l-3.4-3.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
   </svg>
 );
 
 /* ---------------------------------------------------------------------- */
-/* Price presets -- same ladder logic as the public ShopPage              */
+/* Price presets                                                          */
 /* ---------------------------------------------------------------------- */
 // Two ladders. Which one shows up is decided by getPricePresets() below,
 // keyed off the active category. Edit either list to move its ladder, or
@@ -115,11 +101,11 @@ const DEFAULT_SORT = findLowToHighSortValue(sortOptions) || "price_asc";
 if (!findLowToHighSortValue(sortOptions)) {
   // eslint-disable-next-line no-console
   console.warn(
-    "[AdminProductsList] Couldn't find a low-to-high option in sortOptions — defaulting to \"price_asc\". Check the value string in categoryfilterfields.js."
+    "[ShopPage] Couldn't find a low-to-high option in sortOptions — defaulting to \"price_asc\". Check the value string in categoryfilterfields.js."
   );
 }
 
-// Phones (and anything not matched below) — original ladder.
+// Phones (and anything not matched below) — original ladder, unchanged.
 const PHONE_PRICE_PRESETS = [
   { label: "8k–10k", min: 8000, max: 10000 },
   { label: "10k–12k", min: 10000, max: 12000 },
@@ -160,16 +146,18 @@ const getPricePresets = (categoryKey) => {
   return isBudgetCategory ? BUDGET_PRICE_PRESETS : PHONE_PRICE_PRESETS;
 };
 
-// A plain pill — coral fill/glow when selected, otherwise neutral. Scales
-// down slightly on tap for tactile feedback.
+// A plain pill — gradient fill/glow when selected, otherwise glass. Scales
+// down slightly on tap for tactile feedback and picks up the signature
+// fuchsia-to-cyan gradient instead of a flat border when active, so the
+// "selected" state reads clearly at any screen size.
 const PricePresetChip = ({ preset, isSelected, onSelect }) => (
   <button
     onClick={() => onSelect(isSelected ? null : preset)}
     aria-pressed={isSelected}
     className={`snap-start shrink-0 px-4 py-2 sm:px-3.5 sm:py-1.5 rounded-full border text-[13px] font-medium transition-all duration-150 whitespace-nowrap active:scale-95 ${
       isSelected
-        ? "bg-[#FF5630] border-[#FF5630] text-white shadow-[0_4px_14px_-2px_rgba(255,86,48,0.45)]"
-        : "bg-white border-[#E1E3DD] text-[#4B4F57] hover:border-[#FF5630]/60 hover:text-[#14171C] hover:shadow-sm"
+        ? "bg-gradient-to-r from-fuchsia-500 to-cyan-500 border-transparent text-white shadow-[0_4px_14px_-2px_rgba(217,70,239,0.45)]"
+        : "bg-white/80 backdrop-blur-md border-slate-200 text-slate-500 hover:border-fuchsia-300 hover:text-slate-900 hover:shadow-sm"
     }`}
   >
     {preset.label}
@@ -177,7 +165,7 @@ const PricePresetChip = ({ preset, isSelected, onSelect }) => (
 );
 
 const PricePresetStrip = ({ presets, selectedPreset, onSelect }) => (
-  <div className="flex items-center gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scroll-smooth [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+  <div className="flex items-center gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scroll-smooth md:flex-wrap md:overflow-visible md:snap-none [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
     {presets.map((p) => {
       const isSelected =
         selectedPreset && selectedPreset.min === p.min && selectedPreset.max === p.max;
@@ -186,137 +174,89 @@ const PricePresetStrip = ({ presets, selectedPreset, onSelect }) => (
   </div>
 );
 
-// Row of admin actions shared by the table and the card layout.
-const AdminActions = ({ product, onEdit, onToggleStatus, onDelete, fullWidth }) => (
-  <div className={`flex items-center gap-1.5 ${fullWidth ? "w-full" : "justify-end"}`}>
-    <button
-      onClick={() => onEdit(product._id)}
-      className={`inline-flex items-center gap-1.5 rounded-lg border border-[#E1E3DD] text-[12.5px] font-medium text-[#2F5DFF] px-2.5 py-1.5 hover:border-[#2F5DFF] hover:bg-[#EEF2FF] transition-colors duration-150 ${fullWidth ? "flex-1 justify-center" : ""}`}
-    >
-      <IconEdit /> Edit
-    </button>
-    <button
-      onClick={() => onToggleStatus(product._id)}
-      className={`inline-flex items-center gap-1.5 rounded-lg border border-[#E1E3DD] text-[12.5px] font-medium text-[#4B4F57] px-2.5 py-1.5 hover:border-[#14171C] hover:text-[#14171C] transition-colors duration-150 ${fullWidth ? "flex-1 justify-center" : ""}`}
-    >
-      <IconPower /> {product.isActive ? "Deactivate" : "Activate"}
-    </button>
-    <button
-      onClick={() => onDelete(product._id, product.name)}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-[#F2C6BD] text-[12.5px] font-medium text-[#C0402E] px-2.5 py-1.5 hover:bg-[#FBEAE7] transition-colors duration-150"
-    >
-      <IconTrash />
-    </button>
+/* ---------------------------------------------------------------------- */
+/* Skeletons — glass tone, mirrors the real ProductCard layout            */
+/* ---------------------------------------------------------------------- */
+
+const Shimmer = ({ className = "" }) => (
+  <div className={`relative overflow-hidden bg-gradient-to-br from-fuchsia-50 via-slate-100 to-cyan-50 ${className}`}>
+    <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/70 to-transparent" />
   </div>
 );
 
-// One product, laid out as label/value rows -- used for tablet (2-col grid)
-// and mobile (1-col stack) so every attribute stays fully legible instead
-// of being squeezed into table cells.
-const ProductCard = ({ product: p, onEdit, onToggleStatus, onDelete }) => (
-  <div className="border border-[#E1E3DD] rounded-xl bg-white p-4 flex flex-col gap-3">
-    <div className="flex items-start gap-3">
-      {p.images?.[0]?.url ? (
-        <img
-          src={p.images[0].url}
-          alt={p.name}
-          className="w-14 h-14 rounded-lg object-cover border border-[#E1E3DD] shrink-0"
-        />
-      ) : (
-        <div className="w-14 h-14 rounded-lg bg-[#F6F7F3] border border-[#E1E3DD] shrink-0" />
-      )}
-      <div className="min-w-0 flex-1">
-        <p className="font-medium text-[14.5px] text-[#14171C] leading-snug break-words">{p.name}</p>
-        <p className="text-[12.5px] text-[#9CA0A6] mt-0.5">{p.brand}</p>
-        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-          <span className="capitalize text-[11px] font-mono text-[#4B4F57] bg-[#F6F7F3] rounded-full px-2 py-0.5">
-            {p.category}
-          </span>
-          <span
-            className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${
-              p.isActive ? "bg-[#E6F4EA] text-[#1E7B3B]" : "bg-[#F1F1EE] text-[#4B4F57]"
-            }`}
-          >
-            {p.isActive ? "Active" : "Inactive"}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-[13px] border-t border-[#E1E3DD] pt-3">
-      <div>
-        <dt className="text-[11px] uppercase tracking-wide text-[#9CA0A6] font-mono">Selling price</dt>
-        <dd className="font-mono text-[#14171C] mt-0.5">₹{p.pricing?.sellingPrice ?? "—"}</dd>
-      </div>
-      <div>
-        <dt className="text-[11px] uppercase tracking-wide text-[#9CA0A6] font-mono">Purchase price</dt>
-        <dd className="font-mono text-[#4B4F57] mt-0.5">
-          {p.pricing?.purchasePrice !== undefined ? `₹${p.pricing.purchasePrice}` : "—"}
-        </dd>
-      </div>
-      <div>
-        <dt className="text-[11px] uppercase tracking-wide text-[#9CA0A6] font-mono">Negotiation</dt>
-        <dd className="font-mono text-[#4B4F57] mt-0.5">
-          {p.pricing?.negotiation
-            ? `₹${p.pricing.negotiation.minPrice ?? "—"} – ₹${p.pricing.negotiation.maxPrice ?? "—"}`
-            : "—"}
-        </dd>
-      </div>
-      <div>
-        <dt className="text-[11px] uppercase tracking-wide text-[#9CA0A6] font-mono">Stock</dt>
-        <dd className="font-mono text-[#14171C] mt-0.5">{p.stock}</dd>
-      </div>
-    </dl>
-
-    <div className="border-t border-[#E1E3DD] pt-3">
-      <AdminActions product={p} onEdit={onEdit} onToggleStatus={onToggleStatus} onDelete={onDelete} fullWidth />
+const SkeletonCard = () => (
+  <div className="rounded-2xl border border-slate-200 bg-white/70 backdrop-blur-md overflow-hidden">
+    <Shimmer className="aspect-square" />
+    <div className="p-3.5 space-y-2.5">
+      <Shimmer className="h-2.5 w-1/3 rounded-full" />
+      <Shimmer className="h-3 w-4/5 rounded-full" />
+      <Shimmer className="h-4 w-1/2 rounded-full mt-1" />
     </div>
   </div>
 );
 
-// Horizontal brand chip strip. Shown/hidden by the "Brands" toggle button.
-// Pure presentational -- all data + handlers come from the parent so the
-// fetch-once-per-category caching lives in one place.
+const SkeletonBrandChip = () => (
+  <div className="shrink-0 flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 backdrop-blur-md px-3 py-2 min-w-[76px]">
+    <Shimmer className="w-9 h-9 rounded-full" />
+    <Shimmer className="h-2.5 w-10 rounded-full" />
+  </div>
+);
+
+const SkeletonPriceChip = () => (
+  <Shimmer className="shrink-0 h-[30px] w-[80px] rounded-full border border-slate-200" />
+);
+
+/* ---------------------------------------------------------------------- */
+/* Brand strip                                                            */
+/* ---------------------------------------------------------------------- */
+
 const BrandStrip = ({ brands, loading, error, selectedBrand, onSelect }) => {
   if (loading) {
-    return <p className="text-[13px] text-[#4B4F57] px-1 py-1">Loading brands…</p>;
+    return (
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <SkeletonBrandChip key={i} />
+        ))}
+      </div>
+    );
   }
   if (error) {
-    return <p className="text-[13px] text-[#C0402E] px-1 py-1">{error}</p>;
+    return <p className="text-[13px] text-rose-600 px-1 py-1">{error}</p>;
   }
   if (brands.length === 0) {
-    return <p className="text-[13px] text-[#4B4F57] px-1 py-1">No brands found in this category.</p>;
+    return <p className="text-[13px] text-slate-400 px-1 py-1">No brands available in this category yet.</p>;
   }
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+    <div className="flex items-center gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible">
       {brands.map((b) => {
         const isSelected = selectedBrand === b.brand;
         return (
           <button
             key={b.brand}
-            onClick={() => onSelect(b.brand)}
-            className={`shrink-0 flex flex-col items-center gap-1.5 rounded-lg border px-3 py-2 min-w-[76px] transition-colors duration-150 ${
+            onClick={() => onSelect(isSelected ? "" : b.brand)}
+            aria-pressed={isSelected}
+            className={`shrink-0 flex flex-col items-center gap-1.5 rounded-xl border px-3 py-2 min-w-[76px] transition-all duration-150 backdrop-blur-md ${
               isSelected
-                ? "border-[#2F5DFF] bg-[#EEF2FF]"
-                : "border-[#E1E3DD] hover:border-[#2F5DFF]"
+                ? "border-fuchsia-300 bg-fuchsia-50/80 ring-1 ring-fuchsia-300/50 shadow-[0_8px_20px_-12px_rgba(217,70,239,0.4)]"
+                : "border-slate-200 bg-white/80 hover:border-fuchsia-200 hover:bg-fuchsia-50/40"
             }`}
           >
             {b.sampleImage ? (
               <img
                 src={b.sampleImage}
                 alt={b.brand}
-                className="w-9 h-9 rounded-full object-cover border border-[#E1E3DD]"
+                className="w-9 h-9 rounded-full object-cover border border-slate-200"
               />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-[#F6F7F3] border border-[#E1E3DD] flex items-center justify-center text-[#9CA0A6]">
+              <div className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400">
                 <IconTag />
               </div>
             )}
-            <span className="text-[11.5px] font-medium text-[#14171C] truncate max-w-[70px]" title={b.brand}>
+            <span className="text-[11.5px] font-medium text-slate-900 truncate max-w-[70px]" title={b.brand}>
               {b.brand}
             </span>
-            <span className="text-[10px] font-mono text-[#9CA0A6]">{b.productCount}</span>
+            <span className="text-[10px] font-mono text-slate-400">{b.productCount}</span>
           </button>
         );
       })}
@@ -324,29 +264,38 @@ const BrandStrip = ({ brands, loading, error, selectedBrand, onSelect }) => {
   );
 };
 
-const AdminProductsList = ({ onEdit, onAddNew }) => {
+/* ---------------------------------------------------------------------- */
+/* Section label — small caps eyebrow used above each sub-row             */
+/* ---------------------------------------------------------------------- */
+
+const SectionLabel = ({ children }) => (
+  <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 px-1">
+    {children}
+  </span>
+);
+
+/* ---------------------------------------------------------------------- */
+/* Page                                                                    */
+/* ---------------------------------------------------------------------- */
+
+const ShopPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [actionError, setActionError] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [sheetClosing, setSheetClosing] = useState(false);
 
-  // -- brands feature state --------------------------------------------
   const [brands, setBrands] = useState([]);
   const [brandsLoading, setBrandsLoading] = useState(false);
   const [brandsError, setBrandsError] = useState("");
-  const [showBrands, setShowBrands] = useState(false);
-
-  // -- price feature state ----------------------------------------------
-  const [showPrice, setShowPrice] = useState(false);
 
   const category = searchParams.get("category") || "";
   const search = searchParams.get("search") || "";
   const sort = searchParams.get("sort") || DEFAULT_SORT;
   const page = Number(searchParams.get("page")) || 1;
-  const brand = searchParams.get("brand") || ""; // same lane as category/search/sort
+  const brand = searchParams.get("brand") || "";
   const minPrice = searchParams.get("minPrice");
   const maxPrice = searchParams.get("maxPrice");
 
@@ -362,19 +311,7 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
     );
   }, [pricePresets, minPrice, maxPrice]);
 
-  const priceChipLabel = selectedPreset
-    ? selectedPreset.max
-      ? `${formatINR(selectedPreset.min)}\u2013${formatINR(selectedPreset.max)}`
-      : `${formatINR(selectedPreset.min)}+`
-    : null;
-
-  // Local, uncommitted copy of the search box -- only written to the URL
-  // (and therefore only triggers a fetch) on submit.
-  const [searchInput, setSearchInput] = useState(search);
-  useEffect(() => setSearchInput(search), [search]);
-
-  // Everything in the URL except the params that get their own dedicated
-  // controls -- this is what the sidebar edits.
+  // Everything in the URL except params with their own dedicated control.
   const filters = useMemo(() => {
     const obj = {};
     for (const [key, value] of searchParams.entries()) {
@@ -385,7 +322,19 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
     return obj;
   }, [searchParams]);
 
-  const activeFilterCount = Object.keys(filters).length;
+  // Sidebar-only count (category-specific fields), used on the sidebar's
+  // own badge/heading.
+  const sidebarFilterCount = Object.keys(filters).length;
+  // Everything an admin/shopper would think of as "a filter I set" --
+  // sidebar fields + brand + price -- used for chips, "Clear all", and the
+  // mobile Filters button badge.
+  const activeFilterCount = sidebarFilterCount + (brand ? 1 : 0) + (minPrice ? 1 : 0);
+
+  // Local, uncommitted copy of the search box -- only written to the URL
+  // (and therefore only triggers a fetch) on submit, same pattern as the
+  // admin list's search box.
+  const [searchInput, setSearchInput] = useState(search);
+  useEffect(() => setSearchInput(search), [search]);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -396,8 +345,9 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
       // otherwise the backend falls back to its own default instead of
       // opening on low-to-high price.
       if (!params.sort) params.sort = DEFAULT_SORT;
-      const res = await API.get("/api/v1/products/admin/search", {
+      const res = await API.get("/api/v1/products/search", {
         params: { ...params, limit: 20 },
+        withCredentials: true,
       });
       setProducts(res.data.data.products);
       setPagination(res.data.data.pagination);
@@ -412,14 +362,17 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
     fetchProducts();
   }, [fetchProducts]);
 
-  // -- brands: fetch + reset on category change -------------------------
   const fetchBrands = useCallback(async () => {
-    if (!category) return;
+    if (!category) {
+      setBrands([]);
+      return;
+    }
     setBrandsLoading(true);
     setBrandsError("");
     try {
-      const res = await API.get("/api/v1/products/admin/brands", {
+      const res = await API.get("/api/v1/products/brands", {
         params: { category },
+        withCredentials: true,
       });
       setBrands(res.data.data);
     } catch (err) {
@@ -429,57 +382,31 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
     }
   }, [category]);
 
-  // Switching category invalidates the cached brand list -- collapse the
-  // panel and clear stale brands so a re-open always fetches fresh data
-  // for the new category. Also collapse the price panel, since the ladder
-  // itself changes per category.
   useEffect(() => {
-    setShowBrands(false);
-    setBrands([]);
-    setShowPrice(false);
-  }, [category]);
+    fetchBrands();
+  }, [fetchBrands]);
 
-  const handleToggleBrands = () => {
-    const next = !showBrands;
-    setShowBrands(next);
-    if (next && brands.length === 0) fetchBrands();
-  };
-
-  const handleBrandSelect = (brandName) => {
-    updateParams({ brand: brandName });
-    setShowBrands(false);
-  };
-
-  const handleClearBrand = () => {
-    updateParams({ brand: undefined });
-  };
-
-  const handleTogglePrice = () => {
-    setShowPrice((prev) => !prev);
-  };
-
-  const handlePricePresetSelect = (preset) => {
-    if (!preset) {
-      updateParams({ minPrice: undefined, maxPrice: undefined });
-      return;
-    }
-    updateParams({ minPrice: String(preset.min), maxPrice: preset.max ? String(preset.max) : undefined });
-    setShowPrice(false);
-  };
-
-  const handleClearPrice = () => {
-    updateParams({ minPrice: undefined, maxPrice: undefined });
-  };
-
-  // Lock body scroll while the mobile filter drawer is open.
   useEffect(() => {
     if (mobileFiltersOpen) {
       document.body.style.overflow = "hidden";
+      const onKeyDown = (e) => {
+        if (e.key === "Escape") closeSheet();
+      };
+      window.addEventListener("keydown", onKeyDown);
       return () => {
         document.body.style.overflow = "";
+        window.removeEventListener("keydown", onKeyDown);
       };
     }
   }, [mobileFiltersOpen]);
+
+  const closeSheet = () => {
+    setSheetClosing(true);
+    setTimeout(() => {
+      setMobileFiltersOpen(false);
+      setSheetClosing(false);
+    }, 180);
+  };
 
   const updateParams = (updates, { resetPage = true } = {}) => {
     const next = new URLSearchParams(searchParams);
@@ -495,14 +422,12 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
   };
 
   const handleCategoryChange = (newCategory) => {
-    // switching category invalidates every category-specific filter, and
-    // the previously selected brand/price (neither carries across categories
-    // -- brands are category-scoped, and the price ladder itself changes)
     const next = new URLSearchParams();
     if (newCategory) next.set("category", newCategory);
     if (search) next.set("search", search);
     if (sort !== DEFAULT_SORT) next.set("sort", sort);
     setSearchParams(next);
+    setMobileFiltersOpen(false);
   };
 
   const handleFilterChange = (newFilters) => {
@@ -510,8 +435,8 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
     if (category) next.set("category", category);
     if (search) next.set("search", search);
     if (sort !== DEFAULT_SORT) next.set("sort", sort);
-    if (brand) next.set("brand", brand); // preserve brand across sidebar filter changes
-    if (minPrice) next.set("minPrice", minPrice); // preserve price across sidebar filter changes
+    if (brand) next.set("brand", brand);
+    if (minPrice) next.set("minPrice", minPrice);
     if (maxPrice) next.set("maxPrice", maxPrice);
     Object.entries(newFilters).forEach(([key, value]) => {
       if (value !== undefined && value !== "") next.set(key, value);
@@ -519,385 +444,385 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
     setSearchParams(next);
   };
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    updateParams({ search: searchInput });
+  const handleBrandSelect = (brandName) => {
+    updateParams({ brand: brandName });
   };
 
-  const handleToggleStatus = async (id) => {
-    setActionError("");
-    try {
-      await API.patch(`/api/v1/products/${id}/toggle-status`);
-      setProducts((prev) =>
-        prev.map((p) => (p._id === id ? { ...p, isActive: !p.isActive } : p))
-      );
-    } catch (err) {
-      setActionError(err.response?.data?.message || "Failed to toggle status.");
-    }
-  };
-
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Delete "${name}"? This also removes its images from storage. This cannot be undone.`)) {
+  const handlePricePresetSelect = (preset) => {
+    if (!preset) {
+      updateParams({ minPrice: null, maxPrice: null });
       return;
     }
-    setActionError("");
-    try {
-      await API.delete(`/api/v1/products/${id}`);
-      setProducts((prev) => prev.filter((p) => p._id !== id));
-    } catch (err) {
-      setActionError(err.response?.data?.message || "Failed to delete product.");
-    }
+    updateParams({ minPrice: String(preset.min), maxPrice: preset.max ? String(preset.max) : null });
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    updateParams({ search: searchInput.trim() });
+  };
+
+  const handleClearSearchInput = () => {
+    setSearchInput("");
+    if (search) updateParams({ search: null });
+  };
+
+  // Clears sidebar filters + brand + price, keeping category/search/sort.
+  const clearFilters = () => {
+    const next = new URLSearchParams();
+    if (category) next.set("category", category);
+    if (search) next.set("search", search);
+    if (sort !== DEFAULT_SORT) next.set("sort", sort);
+    setSearchParams(next);
   };
 
   const activeCategory = CATEGORIES.find((c) => c.key === category);
 
+  const priceChipLabel = selectedPreset
+    ? selectedPreset.max
+      ? `${formatINR(selectedPreset.min)}\u2013${formatINR(selectedPreset.max)}`
+      : `${formatINR(selectedPreset.min)}+`
+    : null;
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-8">
+    <div className="relative max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-8 overflow-x-clip">
+      <style>{`
+        @keyframes shimmer { 100% { transform: translateX(100%); } }
+        @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes sheetDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card-in { animation: fadeInUp 0.45s cubic-bezier(.2,.8,.3,1.05) both; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .card-in { animation: none !important; opacity: 1 !important; transform: none !important; }
+          [class*="animate-[shimmer"] { animation: none !important; }
+        }
+      `}</style>
+
+      {/* Ambient wash, clamped so it can never force horizontal scroll */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-10 right-0 w-[min(420px,80vw)] h-[min(420px,80vw)] rounded-full bg-gradient-to-br from-cyan-200/20 to-fuchsia-200/20 blur-3xl -z-10"
+      />
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <div>
-          <h1 className="font-display text-[20px] sm:text-[22px] font-semibold text-[#14171C] tracking-tight">
-            Inventory
-          </h1>
-          <p className="text-[13.5px] text-[#4B4F57] mt-1">
-            {search ? `Results for "${search}" — ` : activeCategory ? `${activeCategory.label} — ` : ""}
-            {brand ? `${brand} — ` : ""}
-            {priceChipLabel ? `${priceChipLabel} — ` : ""}
-            {pagination.total} product{pagination.total === 1 ? "" : "s"}
-          </p>
-        </div>
-        <button
-          onClick={onAddNew}
-          className="rounded-full bg-[#14171C] text-white text-[14px] font-medium px-5 py-2.5 hover:bg-[#2F5DFF] transition-colors duration-150 w-full sm:w-auto"
-        >
-          + Add product
-        </button>
+      <div className="mb-5 md:mb-6">
+        <h1 className="font-display text-[20px] sm:text-[24px] font-semibold text-slate-900 tracking-tight">
+          {search ? `Results for "${search}"` : activeCategory ? activeCategory.label : "All products"}
+          {brand ? ` \u00B7 ${brand}` : ""}
+        </h1>
+        <p className="text-[13.5px] text-slate-500 mt-1">
+          {loading ? "Searching\u2026" : `${pagination.total} product${pagination.total === 1 ? "" : "s"}`}
+        </p>
       </div>
 
-      {/* Category tabs -- horizontally scrollable on narrow screens */}
-      <div className="flex items-center gap-2 mb-5 border-b border-[#E1E3DD] pb-4 overflow-x-auto whitespace-nowrap -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
-        <button
-          onClick={() => handleCategoryChange("")}
-          className={`shrink-0 px-3.5 py-2 rounded-full text-[13.5px] font-medium transition-colors duration-150 ${
-            !category ? "bg-[#14171C] text-white" : "text-[#4B4F57] hover:bg-[#F6F7F3]"
-          }`}
-        >
-          All
-        </button>
-        {CATEGORIES.map((c) => (
+      {/* Sticky bar — category tabs ONLY. Everything else below scrolls normally
+          so it doesn't eat the viewport once a category is selected. */}
+      <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 bg-white/80 backdrop-blur-xl border-b border-slate-200">
+        <div className="flex items-center gap-2 py-3 overflow-x-auto whitespace-nowrap sm:flex-wrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <button
-            key={c.key}
-            onClick={() => handleCategoryChange(c.key)}
-            className={`shrink-0 px-3.5 py-2 rounded-full text-[13.5px] font-medium transition-colors duration-150 ${
-              category === c.key ? "bg-[#14171C] text-white" : "text-[#4B4F57] hover:bg-[#F6F7F3]"
+            onClick={() => handleCategoryChange("")}
+            className={`shrink-0 px-3.5 py-2 rounded-full text-[13.5px] font-medium transition-all duration-150 ${
+              !category
+                ? "bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white shadow-[0_6px_16px_-6px_rgba(217,70,239,0.5)]"
+                : "text-slate-500 hover:bg-fuchsia-50 hover:text-fuchsia-600"
             }`}
           >
-            {c.label}
+            All
           </button>
-        ))}
+          {CATEGORIES.map((c) => (
+            <button
+              key={c.key}
+              onClick={() => handleCategoryChange(c.key)}
+              className={`shrink-0 px-3.5 py-2 rounded-full text-[13.5px] font-medium transition-all duration-150 ${
+                category === c.key
+                  ? "bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white shadow-[0_6px_16px_-6px_rgba(217,70,239,0.5)]"
+                  : "text-slate-500 hover:bg-fuchsia-50 hover:text-fuchsia-600"
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Brands + Price toggles -- only when a specific category is active */}
-      {category && (
-        <div className="mb-5 flex flex-col sm:flex-row sm:items-start gap-3">
-          {/* Brands */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={handleToggleBrands}
-                aria-expanded={showBrands}
-                className={`inline-flex items-center gap-1.5 rounded-full border text-[13px] font-medium px-3.5 py-2 transition-colors duration-150 ${
-                  showBrands
-                    ? "border-[#2F5DFF] text-[#2F5DFF] bg-[#EEF2FF]"
-                    : "border-[#E1E3DD] text-[#14171C] hover:border-[#2F5DFF]"
-                }`}
-              >
-                <IconTag />
-                Brands
-                <IconChevronDown className={`transition-transform duration-150 ${showBrands ? "rotate-180" : ""}`} />
-              </button>
-
-              {brand && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#14171C] text-white text-[12.5px] font-medium pl-3 pr-1.5 py-1.5">
-                  {brand}
-                  <button
-                    onClick={handleClearBrand}
-                    aria-label="Clear brand filter"
-                    className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center"
-                  >
-                    <IconClose width="10" height="10" />
-                  </button>
-                </span>
-              )}
-            </div>
-
-            {showBrands && (
-              <div className="mt-3 border border-[#E1E3DD] rounded-xl bg-white p-3">
-                <BrandStrip
-                  brands={brands}
-                  loading={brandsLoading}
-                  error={brandsError}
-                  selectedBrand={brand}
-                  onSelect={handleBrandSelect}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Price */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={handleTogglePrice}
-                aria-expanded={showPrice}
-                className={`inline-flex items-center gap-1.5 rounded-full border text-[13px] font-medium px-3.5 py-2 transition-colors duration-150 ${
-                  showPrice
-                    ? "border-[#FF5630] text-[#FF5630] bg-[#FFF1EE]"
-                    : "border-[#E1E3DD] text-[#14171C] hover:border-[#FF5630]"
-                }`}
-              >
-                <IconRupee />
-                Price
-                <IconChevronDown className={`transition-transform duration-150 ${showPrice ? "rotate-180" : ""}`} />
-              </button>
-
-              {priceChipLabel && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF5630] text-white text-[12.5px] font-medium pl-3 pr-1.5 py-1.5">
-                  {priceChipLabel}
-                  <button
-                    onClick={handleClearPrice}
-                    aria-label="Clear price filter"
-                    className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center"
-                  >
-                    <IconClose width="10" height="10" />
-                  </button>
-                </span>
-              )}
-            </div>
-
-            {showPrice && (
-              <div className="mt-3 border border-[#E1E3DD] rounded-xl bg-white p-3">
-                <PricePresetStrip presets={pricePresets} selectedPreset={selectedPreset} onSelect={handlePricePresetSelect} />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Search + sort + (mobile) filters trigger */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+      {/* Search bar — every screen size, right under the sticky tabs. This
+          was previously missing entirely: the URL and header both already
+          understood a `search` term, but there was no input to set one. */}
+      <div className="pt-4">
+        <form onSubmit={handleSearchSubmit} className="relative max-w-md">
+          <IconSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search by name…"
-            className="font-mono text-[13px] bg-white border border-[#E1E3DD] rounded-lg px-3.5 py-2 flex-1 sm:w-56 text-[#14171C] placeholder:text-[#9CA0A6] focus:outline-none focus:border-[#2F5DFF]"
+            placeholder="Search products…"
+            className="w-full text-[13.5px] bg-white/80 backdrop-blur-md border border-slate-200 rounded-full pl-10 pr-9 py-2.5 min-h-[42px] text-slate-900 placeholder:text-slate-400 outline-none shadow-sm transition-colors duration-150 focus:border-fuchsia-300 focus:ring-2 focus:ring-fuchsia-400/15"
           />
-          <button
-            type="submit"
-            className="shrink-0 rounded-lg border border-[#E1E3DD] text-[13px] font-medium text-[#4B4F57] px-3.5 py-2 hover:border-[#14171C] hover:text-[#14171C]"
-          >
-            Search
-          </button>
-        </form>
-
-        <div className="flex items-center gap-2">
-          {category && (
+          {searchInput && (
             <button
-              onClick={() => setMobileFiltersOpen(true)}
-              className="lg:hidden inline-flex items-center gap-1.5 rounded-lg border border-[#E1E3DD] text-[13px] font-medium text-[#14171C] px-3.5 py-2 hover:border-[#2F5DFF]"
+              type="button"
+              onClick={handleClearSearchInput}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors duration-150"
             >
-              <IconFilter />
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[#2F5DFF] text-white text-[10.5px] font-mono">
-                  {activeFilterCount}
-                </span>
-              )}
+              <IconClose width="12" height="12" />
             </button>
           )}
-          <Select
-            value={sort}
-            onChange={(v) => updateParams({ sort: v }, { resetPage: false })}
-            options={sortOptions}
-          />
-        </div>
+        </form>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Sidebar -- inline on desktop, slide-over drawer below lg */}
-        {category && (
-          <>
-            <div className="hidden lg:block w-64 shrink-0">
-              <DynamicFilterSidebar category={category} filters={filters} onFilterChange={handleFilterChange} />
+      {/* Non-sticky: brand strip, price strip, filter/sort row */}
+      {category && (
+        <>
+          <div className="pt-4 pb-2.5">
+            <SectionLabel>Brands</SectionLabel>
+            <div className="mt-1.5">
+              <BrandStrip
+                brands={brands}
+                loading={brandsLoading}
+                error={brandsError}
+                selectedBrand={brand}
+                onSelect={handleBrandSelect}
+              />
             </div>
+          </div>
 
-            {mobileFiltersOpen && (
-              <div className="lg:hidden fixed inset-0 z-50 flex justify-end">
-                <div
-                  className="absolute inset-0 bg-black/30"
-                  onClick={() => setMobileFiltersOpen(false)}
-                  aria-hidden="true"
-                />
-                <div
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Filters"
-                  className="relative w-[85%] max-w-xs h-full bg-white shadow-xl overflow-y-auto p-5"
+          <div className="pb-3">
+            <div className="flex items-center justify-between px-1">
+              <SectionLabel>Price</SectionLabel>
+              {selectedPreset && (
+                <button
+                  onClick={() => handlePricePresetSelect(null)}
+                  className="text-[11px] font-medium text-fuchsia-600 hover:text-fuchsia-700 hover:underline"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="font-display text-[15px] font-semibold text-[#14171C]">Filters</h2>
-                    <button
-                      onClick={() => setMobileFiltersOpen(false)}
-                      className="p-1.5 rounded-lg text-[#4B4F57] hover:bg-[#F6F7F3]"
-                      aria-label="Close filters"
-                    >
-                      <IconClose />
-                    </button>
-                  </div>
-                  <DynamicFilterSidebar
-                    category={category}
-                    filters={filters}
-                    onFilterChange={(f) => {
-                      handleFilterChange(f);
-                    }}
-                  />
+                  Reset
+                </button>
+              )}
+            </div>
+            <div className="mt-1.5">
+              {brandsLoading ? (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <SkeletonPriceChip key={i} />
+                  ))}
+                </div>
+              ) : (
+                <PricePresetStrip presets={pricePresets} selectedPreset={selectedPreset} onSelect={handlePricePresetSelect} />
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="flex items-center justify-between gap-2 pb-3 pt-1">
+        {category ? (
+          <button
+            onClick={() => setMobileFiltersOpen(true)}
+            className="lg:hidden relative inline-flex items-center gap-1.5 rounded-full border border-slate-200 text-[13px] font-medium text-slate-900 px-4 py-2 hover:border-fuchsia-300 bg-white/80 backdrop-blur-md shadow-sm transition-colors duration-150"
+          >
+            <IconFilter />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white text-[10.5px] font-mono">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        ) : (
+          <span />
+        )}
+
+        <Select value={sort} onChange={(v) => updateParams({ sort: v }, { resetPage: false })} options={sortOptions} />
+      </div>
+
+      <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-8 pt-2 md:pt-3">
+        {/* Desktop sidebar — a real glass card now instead of a bare
+            DynamicFilterSidebar: header (Filters + active category + field
+            count), its own scroll region so a long filter list doesn't
+            push the whole page down, sticky under the sticky category-tabs
+            bar, and a "Clear all filters" footer once anything is active. */}
+        {category && (
+          <div className="hidden lg:block w-64 xl:w-72 shrink-0 lg:sticky lg:top-[76px]">
+            <div className="border border-slate-200 rounded-2xl bg-white/80 backdrop-blur-xl shadow-[0_18px_40px_-30px_rgba(217,70,239,0.3)] max-h-[calc(100vh-96px)] flex flex-col overflow-hidden">
+              <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-slate-100 shrink-0">
+                <span className="w-6 h-6 rounded-lg bg-gradient-to-r from-fuchsia-50 to-cyan-50 border border-slate-200 text-slate-500 flex items-center justify-center shrink-0">
+                  <IconFilter />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="font-display text-[14px] font-semibold text-slate-900 leading-tight">Filters</h2>
+                  {activeCategory && <p className="text-[11px] text-slate-400 truncate">{activeCategory.label}</p>}
+                </div>
+                {sidebarFilterCount > 0 && (
+                  <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white text-[10px] font-mono shrink-0">
+                    {sidebarFilterCount}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-4 py-4 [scrollbar-width:thin]">
+                <DynamicFilterSidebar category={category} filters={filters} onFilterChange={handleFilterChange} />
+              </div>
+
+              {activeFilterCount > 0 && (
+                <div className="shrink-0 px-4 py-3 border-t border-slate-100">
                   <button
-                    onClick={() => setMobileFiltersOpen(false)}
-                    className="mt-5 w-full rounded-full bg-[#14171C] text-white text-[14px] font-medium py-2.5"
+                    onClick={clearFilters}
+                    className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 text-[12.5px] font-medium text-slate-500 py-2 hover:border-rose-200 hover:text-rose-600 hover:bg-rose-50/60 transition-colors duration-150"
                   >
-                    Show results
+                    <IconClose width="11" height="11" />
+                    Clear all filters
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Mobile bottom sheet */}
+        {category && mobileFiltersOpen && (
+          <div className="lg:hidden fixed inset-0 z-50 flex items-end">
+            <div
+              className={`absolute inset-0 bg-slate-950/40 backdrop-blur-sm transition-opacity duration-200 ${sheetClosing ? "opacity-0" : "opacity-100"}`}
+              onClick={closeSheet}
+              aria-hidden="true"
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Filters"
+              className="relative w-full max-h-[85vh] bg-white/95 backdrop-blur-xl rounded-t-3xl shadow-[0_-20px_60px_-20px_rgba(217,70,239,0.25)] overflow-hidden flex flex-col"
+              style={{ animation: `${sheetClosing ? "sheetDown" : "sheetUp"} 0.22s cubic-bezier(0.32,0.72,0,1) both` }}
+            >
+              <div className="flex justify-center pt-2.5 pb-1 shrink-0">
+                <div className="w-9 h-1 rounded-full bg-slate-300" />
+              </div>
+              <div className="flex items-center justify-between px-5 pt-1 pb-3 border-b border-slate-200 shrink-0">
+                <h2 className="font-display text-[15px] font-semibold text-slate-900">
+                  Filters
+                  {activeFilterCount > 0 && (
+                    <span className="ml-2 text-[12px] font-mono text-slate-400">({activeFilterCount})</span>
+                  )}
+                </h2>
+                <div className="flex items-center gap-3">
+                  {activeFilterCount > 0 && (
+                    <button
+                      onClick={clearFilters}
+                      className="text-[12.5px] font-medium text-rose-600 hover:text-rose-700"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                  <button onClick={closeSheet} className="p-1.5 rounded-full text-slate-500 hover:bg-fuchsia-50 hover:text-fuchsia-600 transition-colors duration-150" aria-label="Close filters">
+                    <IconClose />
                   </button>
                 </div>
               </div>
-            )}
-          </>
+              <div className="overflow-y-auto px-5 py-4 flex-1">
+                <SectionLabel>Price</SectionLabel>
+                <div className="mt-2 mb-5">
+                  <PricePresetStrip presets={pricePresets} selectedPreset={selectedPreset} onSelect={handlePricePresetSelect} />
+                </div>
+                <DynamicFilterSidebar category={category} filters={filters} onFilterChange={handleFilterChange} />
+              </div>
+              <div
+                className="px-5 pt-4 border-t border-slate-200 shrink-0 bg-white/95 backdrop-blur-xl"
+                style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}
+              >
+                <button
+                  onClick={closeSheet}
+                  className="w-full rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white text-[14px] font-medium py-3 flex items-center justify-center gap-2 active:scale-[0.98] shadow-[0_10px_24px_-8px_rgba(217,70,239,0.45)] transition-transform duration-150"
+                >
+                  Show {pagination.total} result{pagination.total === 1 ? "" : "s"}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Results */}
         <div className="flex-1 min-w-0">
-          {actionError && (
-            <div className="mb-4 rounded-lg bg-[#FBEAE7] border border-[#F2C6BD] px-3.5 py-2.5 text-[13px] text-[#C0402E]">
-              {actionError}
+          {activeFilterCount > 0 && (
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              <span className="text-[12.5px] text-slate-400">
+                {activeFilterCount} filter{activeFilterCount === 1 ? "" : "s"} applied
+              </span>
+              {brand && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white text-[12px] font-medium pl-3 pr-1.5 py-1 shadow-[0_4px_12px_-4px_rgba(217,70,239,0.4)]">
+                  {brand}
+                  <button onClick={() => handleBrandSelect("")} aria-label="Clear brand filter" className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center">
+                    <IconClose width="9" height="9" />
+                  </button>
+                </span>
+              )}
+              {priceChipLabel && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white text-[12px] font-medium pl-3 pr-1.5 py-1 shadow-[0_4px_12px_-4px_rgba(217,70,239,0.4)]">
+                  {priceChipLabel}
+                  <button onClick={() => handlePricePresetSelect(null)} aria-label="Clear price filter" className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center">
+                    <IconClose width="9" height="9" />
+                  </button>
+                </span>
+              )}
+              <button onClick={clearFilters} className="text-[12.5px] font-medium text-fuchsia-600 hover:text-fuchsia-700 hover:underline">
+                Clear all
+              </button>
             </div>
           )}
 
           {loading ? (
-            <p className="text-[13.5px] text-[#4B4F57]">Loading…</p>
-          ) : error ? (
-            <div className="rounded-lg bg-[#FBEAE7] border border-[#F2C6BD] px-3.5 py-2.5 text-[13px] text-[#C0402E]">
-              {error}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
             </div>
+          ) : error ? (
+            <div className="rounded-xl bg-rose-50 border border-rose-200 px-3.5 py-2.5 text-[13px] text-rose-600">{error}</div>
           ) : products.length === 0 ? (
-            <p className="text-[13.5px] text-[#4B4F57]">No products match these filters.</p>
+            <div className="text-center py-16">
+              <div className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-md border border-slate-200 flex items-center justify-center mx-auto mb-4 text-slate-400 shadow-[0_2px_10px_-2px_rgba(15,23,42,0.1)]">
+                <IconFilter />
+              </div>
+              <p className="text-[14px] font-medium text-slate-900">
+                {search ? `No products match "${search}".` : "No products match these filters."}
+              </p>
+              <p className="text-[13px] text-slate-400 mt-1">Try widening your search or clearing a filter.</p>
+              {(activeFilterCount > 0 || search) && (
+                <button
+                  onClick={() => {
+                    handleClearSearchInput();
+                    clearFilters();
+                  }}
+                  className="mt-4 rounded-full border border-slate-200 text-[13px] font-medium text-slate-900 px-4 py-2 bg-white/80 backdrop-blur-md hover:border-fuchsia-300 transition-colors duration-150"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
           ) : (
-            <>
-              {/* Desktop: table */}
-              <div className="hidden lg:block border border-[#E1E3DD] rounded-xl overflow-hidden bg-white overflow-x-auto">
-                <table className="w-full text-[13.5px]">
-                  <thead>
-                    <tr className="bg-[#F6F7F3] text-left font-mono text-[10.5px] uppercase tracking-wider text-[#9CA0A6]">
-                      <th className="px-4 py-3">Product</th>
-                      <th className="px-4 py-3">Category</th>
-                      <th className="px-4 py-3">Selling price</th>
-                      <th className="px-4 py-3">Purchase price</th>
-                      <th className="px-4 py-3">Negotiation</th>
-                      <th className="px-4 py-3">Stock</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.map((p) => (
-                      <tr key={p._id} className="border-t border-[#E1E3DD]">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            {p.images?.[0]?.url && (
-                              <img
-                                src={p.images[0].url}
-                                alt={p.name}
-                                className="w-9 h-9 rounded-md object-cover border border-[#E1E3DD]"
-                              />
-                            )}
-                            <div>
-                              <p className="font-medium text-[#14171C]">{p.name}</p>
-                              <p className="text-[12px] text-[#9CA0A6]">{p.brand}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 capitalize">{p.category}</td>
-                        <td className="px-4 py-3 font-mono">₹{p.pricing?.sellingPrice}</td>
-                        <td className="px-4 py-3 font-mono text-[#9CA0A6]">
-                          {p.pricing?.purchasePrice !== undefined ? `₹${p.pricing.purchasePrice}` : "—"}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-[12px]">
-                          {p.pricing?.negotiation ? (
-                            <div className="flex flex-col">
-                              <span>₹{p.pricing.negotiation.minPrice ?? "—"}</span>
-                              <span className="text-[#9CA0A6]">to ₹{p.pricing.negotiation.maxPrice ?? "—"}</span>
-                            </div>
-                          ) : (
-                            <span className="text-[#9CA0A6]">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">{p.stock}</td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium ${
-                              p.isActive
-                                ? "bg-[#E6F4EA] text-[#1E7B3B]"
-                                : "bg-[#F1F1EE] text-[#4B4F57]"
-                            }`}
-                          >
-                            {p.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <AdminActions
-                            product={p}
-                            onEdit={onEdit}
-                            onToggleStatus={handleToggleStatus}
-                            onDelete={handleDelete}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Tablet + mobile: card grid (1 col phone, 2 col tablet) */}
-              <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {products.map((p) => (
-                  <ProductCard
-                    key={p._id}
-                    product={p}
-                    onEdit={onEdit}
-                    onToggleStatus={handleToggleStatus}
-                    onDelete={handleDelete}
-                  />
-                ))}
-              </div>
-            </>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+              {products.map((p, i) => (
+                <div key={p._id} className="card-in" style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}>
+                  <ProductCard product={p} />
+                </div>
+              ))}
+            </div>
           )}
 
           {pagination.pages > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-6 md:mt-8">
+            <div className="flex items-center justify-center gap-3 mt-8">
               <button
                 disabled={page <= 1}
                 onClick={() => updateParams({ page: String(page - 1) }, { resetPage: false })}
-                className="text-[13px] font-medium text-[#4B4F57] disabled:opacity-40 hover:text-[#14171C]"
+                className="text-[13px] font-medium text-slate-500 disabled:opacity-40 hover:text-fuchsia-600 transition-colors duration-150"
               >
                 Previous
               </button>
-              <span className="text-[13px] text-[#9CA0A6]">
+              <span className="font-mono text-[12.5px] text-slate-400 bg-white/80 backdrop-blur-md border border-slate-200 rounded-full px-3 py-1">
                 Page {pagination.page} of {pagination.pages}
               </span>
               <button
                 disabled={page >= pagination.pages}
                 onClick={() => updateParams({ page: String(page + 1) }, { resetPage: false })}
-                className="text-[13px] font-medium text-[#4B4F57] disabled:opacity-40 hover:text-[#14171C]"
+                className="text-[13px] font-medium text-slate-500 disabled:opacity-40 hover:text-fuchsia-600 transition-colors duration-150"
               >
                 Next
               </button>
@@ -909,4 +834,4 @@ const AdminProductsList = ({ onEdit, onAddNew }) => {
   );
 };
 
-export default AdminProductsList;
+export default ShopPage;

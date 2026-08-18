@@ -3,26 +3,31 @@
 // A dependency-free, keyboard-accessible custom dropdown to replace native
 // <select> elements.
 //
-// FIX (this pass): the option list is now rendered through a React portal
-// into document.body instead of as a normal absolutely-positioned child.
+// Restyled to match the "Light Glass Tech" design language: frosted glass
+// trigger + popup (backdrop-blur, white/70-85 fill), fuchsia-to-cyan focus
+// ring, JetBrains Mono for the value/option text (system readout, not
+// prose), fuchsia-tinted glow shadow on the open popup, rounded-2xl
+// corners, and a snappy overshoot entrance instead of a flat fade.
 //
-// Why: sibling sections on this page (e.g. the "form-section" cards) use a
-// CSS animation that touches `transform` with `animation-fill-mode: both`.
-// Any element with a non-"none" transform creates its own CSS stacking
-// context, and that context persists forever once the fill-mode locks in
-// the final `translateY(0)` frame. That means each form-section becomes a
-// separate stacking context painted in DOM order — a dropdown's z-index
-// set *inside* one section has no power over a later sibling section, so
-// "Category" 's popup was getting drawn UNDER "Basic details" below it.
-// Bumping z-index cannot fix this; it's not a z-index problem.
+// All positioning/portal/keyboard logic from the previous pass is
+// untouched — the option list still renders through a React portal into
+// document.body so no ancestor stacking context (from transformed
+// form-section siblings) can clip or bury it. It still recalculates
+// position with getBoundingClientRect, flips upward/downward based on
+// real space, clamps height on short viewports, and closes on
+// scroll/resize.
 //
-// Rendering the list into a portal on document.body sidesteps the whole
-// class of bug: the popup is no longer a descendant of any transformed
-// ancestor, so no ancestor stacking context or `overflow:hidden` container
-// can clip or bury it. This also makes the popup layout correctly on
-// small screens (it recalculates position with getBoundingClientRect,
-// flips upward/downward based on real space, and closes on scroll/resize
-// so it never floats away from a trigger that has moved).
+// Responsive notes:
+//  - Trigger and popup both use the trigger's live width (rect.width), so
+//    the popup always matches its parent's rendered width at every
+//    breakpoint — no separate mobile/desktop layout needed.
+//  - Font sizes and padding are held at a comfortable touch target
+//    (py-2.5 = 40px+ tap height) on all screens rather than shrinking on
+//    mobile, since dropdowns are a frequent tap target.
+//  - Popup maxHeight is clamped against real viewport space, so it never
+//    overflows a short mobile viewport in landscape.
+//  - Motion (entrance, hover) is neutralized under
+//    prefers-reduced-motion.
 //
 // Supports: click-to-open, click-outside-to-close, full keyboard nav
 // (ArrowUp/Down, Enter, Escape, Home/End), disabled state, checkmark on
@@ -38,7 +43,7 @@ const IconChevron = ({ open }) => (
     fill="none"
     width="14"
     height="14"
-    className={`shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+    className={`shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
   >
     <path d="M5 7.5l5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
@@ -211,17 +216,17 @@ const Select = ({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`inline-flex items-center justify-between gap-2 font-mono text-[13px] bg-white border rounded-lg px-3.5 py-2.5 text-[#14171C] transition-colors duration-150 ${
+        className={`group inline-flex items-center justify-between gap-2 font-mono text-[13px] backdrop-blur-md rounded-2xl px-3.5 py-2.5 min-h-[42px] text-slate-900 border transition-all duration-200 ${
           fullWidth ? "w-full" : ""
         } ${
           disabled
-            ? "opacity-60 cursor-not-allowed bg-[#F6F7F3] border-[#E1E3DD]"
+            ? "opacity-60 cursor-not-allowed bg-slate-50/80 border-slate-200"
             : open
-            ? "border-[#2F5DFF] ring-2 ring-[#2F5DFF]/15"
-            : "border-[#E1E3DD] hover:border-[#C7CAC3]"
+            ? "bg-white/85 border-fuchsia-300 ring-2 ring-fuchsia-400/20 shadow-[0_10px_28px_-14px_rgba(217,70,239,0.45)]"
+            : "bg-white/70 border-slate-200 hover:border-fuchsia-200 hover:bg-white/80"
         }`}
       >
-        <span className={`truncate ${!selected ? "text-[#9CA0A6]" : ""}`}>
+        <span className={`truncate ${!selected ? "text-slate-400" : ""}`}>
           {selected ? selected.label : placeholder}
         </span>
         <IconChevron open={open} />
@@ -235,14 +240,14 @@ const Select = ({
             ref={listRef}
             role="listbox"
             id={instanceId}
-            className="fixed z-[1000] overflow-auto bg-white border border-[#E1E3DD] rounded-lg shadow-lg py-1 origin-top"
+            className="fixed z-[1000] overflow-auto bg-white/85 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-[0_24px_60px_-28px_rgba(217,70,239,0.4)] py-1.5 origin-top select-popup"
             style={{
               top: coords.top,
               left: coords.left,
               width: coords.width,
               maxHeight: coords.maxHeight,
-              transform: coords.openUpward ? "translateY(-100%)" : "translateY(6px)",
-              animation: "select-pop 0.12s ease both",
+              transform: coords.openUpward ? "translateY(calc(-100% - 6px))" : "translateY(6px)",
+              animation: "select-pop 0.22s cubic-bezier(.2,.8,.3,1.15) both",
             }}
           >
             {options.map((opt, i) => {
@@ -254,12 +259,12 @@ const Select = ({
                   aria-selected={isSelected}
                   onMouseEnter={() => setActiveIndex(i)}
                   onClick={() => commit(opt)}
-                  className={`flex items-center justify-between gap-3 px-3.5 py-2.5 text-[13px] cursor-pointer transition-colors duration-100 ${
-                    i === activeIndex ? "bg-[#F6F7F3]" : ""
-                  } ${isSelected ? "text-[#14171C] font-medium" : "text-[#4B4F57]"}`}
+                  className={`flex items-center justify-between gap-3 mx-1.5 px-3 py-2.5 min-h-[40px] rounded-xl font-mono text-[13px] cursor-pointer transition-colors duration-150 ${
+                    i === activeIndex ? "bg-gradient-to-r from-fuchsia-50 to-cyan-50" : ""
+                  } ${isSelected ? "text-slate-900 font-medium" : "text-slate-500"}`}
                 >
                   <span className="truncate">{opt.label}</span>
-                  {isSelected && <IconCheck className="text-[#2F5DFF] shrink-0" />}
+                  {isSelected && <IconCheck className="text-fuchsia-500 shrink-0" />}
                 </li>
               );
             })}
@@ -269,8 +274,13 @@ const Select = ({
 
       <style>{`
         @keyframes select-pop {
-          from { opacity: 0; }
+          from { opacity: 0; transform-origin: top; }
           to { opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .select-popup {
+            animation: none !important;
+          }
         }
       `}</style>
     </div>

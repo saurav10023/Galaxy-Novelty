@@ -31,6 +31,10 @@ const CONTACT = {
 };
 // ---------------------------------------------------------------------
 
+// Strips spaces/plus so tel:/wa.me links get a clean digit string,
+// regardless of how a number is formatted in CONTACT above.
+const toDialDigits = (number) => number.replace(/[^\d]/g, "");
+
 const MailIcon = () => (
   <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
     <rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
@@ -38,8 +42,8 @@ const MailIcon = () => (
   </svg>
 );
 
-const WhatsAppIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
+const WhatsAppIcon = (props) => (
+  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" {...props}>
     <path
       d="M12 3.5a8.5 8.5 0 0 0-7.3 12.8L3.5 20.5l4.35-1.14A8.5 8.5 0 1 0 12 3.5Z"
       stroke="currentColor"
@@ -53,8 +57,8 @@ const WhatsAppIcon = () => (
   </svg>
 );
 
-const PhoneIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
+const PhoneIcon = (props) => (
+  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" {...props}>
     <path
       d="M5 4h3l1.5 4L7.5 9.5a11 11 0 0 0 6 6l1.5-2L19 15v3a2 2 0 0 1-2 2c-6.6 0-12-5.4-12-12a2 2 0 0 1 2-2Z"
       stroke="currentColor"
@@ -81,20 +85,39 @@ const CopyButton = ({ value }) => {
   return (
     <button
       onClick={handleCopy}
-      className="text-[11.5px] font-medium text-[#9CA0A6] hover:text-[#2F5DFF] transition-colors duration-150 shrink-0"
+      className="font-mono text-[10.5px] uppercase tracking-wide text-slate-400 hover:text-fuchsia-600 transition-colors duration-150 shrink-0"
     >
       {copied ? "Copied" : "Copy"}
     </button>
   );
 };
 
+// Small pill action button used for the Call / WhatsApp actions on each
+// number. `tone="brand"` gets the signature gradient fill (used for the
+// primary WhatsApp action); default is an outlined glass chip.
+const ActionButton = ({ href, icon, label, tone = "default", external = false }) => (
+  <a
+    href={href}
+    target={external ? "_blank" : undefined}
+    rel={external ? "noopener noreferrer" : undefined}
+    className={`inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wide rounded-full px-3 py-1.5 border transition-all duration-150 hover:-translate-y-0.5 ${
+      tone === "brand"
+        ? "bg-gradient-to-r from-fuchsia-500 to-cyan-500 border-transparent text-white shadow-[0_10px_24px_-12px_rgba(217,70,239,0.55)] hover:shadow-[0_14px_28px_-12px_rgba(217,70,239,0.65)]"
+        : "bg-white/70 backdrop-blur-md border-slate-200 text-slate-600 hover:border-fuchsia-200 hover:text-fuchsia-600"
+    }`}
+  >
+    {icon}
+    {label}
+  </a>
+);
+
 const SectionCard = ({ icon, title, children }) => (
-  <div className="rounded-xl border border-[#E1E3DD] bg-white p-5">
+  <div className="rounded-2xl border border-slate-200 bg-white/75 backdrop-blur-xl p-5 shadow-[0_20px_48px_-30px_rgba(217,70,239,0.35)] transition-colors duration-200 hover:border-fuchsia-200">
     <div className="flex items-center gap-2.5 mb-4">
-      <span className="w-9 h-9 rounded-full bg-[#F6F7F3] flex items-center justify-center text-[#14171C]">
+      <span className="w-9 h-9 rounded-2xl bg-gradient-to-r from-fuchsia-50 to-cyan-50 border border-slate-200 flex items-center justify-center text-slate-900">
         {icon}
       </span>
-      <h3 className="font-display text-[15px] font-semibold text-[#14171C]">{title}</h3>
+      <h3 className="font-display text-[15px] font-semibold text-slate-900">{title}</h3>
     </div>
     {children}
   </div>
@@ -102,92 +125,130 @@ const SectionCard = ({ icon, title, children }) => (
 
 const Contact = () => {
   return (
-    <div className="max-w-7xl mx-auto px-6 md:px-10 py-10">
-      <div className="mb-8">
-        <h1 className="font-display text-[26px] font-semibold text-[#14171C] tracking-tight">
-          Get in touch
-        </h1>
-        <p className="text-[13.5px] text-[#4B4F57] mt-1">
-          Visit the store, call, or message us on WhatsApp.
-        </p>
-      </div>
+    <div className="relative max-w-[100vw] overflow-x-hidden">
+      {/* Ambient glow wash, clamped to viewport so it can't cause scroll gap */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-20 right-0 w-[min(560px,140vw)] h-[420px] rounded-full bg-gradient-to-r from-fuchsia-300/30 via-cyan-200/25 to-transparent blur-3xl contact-blob"
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
-        {/* Left half: map + address */}
-        <div className="flex flex-col rounded-xl border border-[#E1E3DD] overflow-hidden bg-white">
-          <div className="flex-1 min-h-[320px]">
-            <iframe
-              title="Store location"
-              src={CONTACT.mapEmbedSrc}
-              width="100%"
-              height="100%"
-              style={{ border: 0, display: "block", minHeight: 320 }}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
-          <div className="p-5 border-t border-[#E1E3DD]">
-            <h4 className="font-mono text-[10.5px] uppercase tracking-wider text-[#9CA0A6] mb-2">
-              Store address
-            </h4>
-            <address className="not-italic text-[14px] text-[#14171C] leading-relaxed">
-              {CONTACT.address.line1}
-              <br />
-              {CONTACT.address.line2}
-              <br />
-              {CONTACT.address.line3}
-            </address>
-          </div>
+      <div className="relative max-w-7xl mx-auto px-6 md:px-10 py-10">
+        <div className="mb-8">
+          <h1 className="font-display text-[26px] font-semibold text-slate-900 tracking-tight leading-[1.05]">
+            Get in touch
+          </h1>
+          <p className="text-[13.5px] text-slate-500 mt-1.5">
+            Visit the store, call, or message us on WhatsApp.
+          </p>
         </div>
 
-        {/* Right half: email, whatsapp, mobile numbers */}
-        <div className="flex flex-col gap-5">
-          <SectionCard icon={<MailIcon />} title="Email">
-            <div className="flex items-center justify-between gap-3">
-              <a
-                href={`mailto:${CONTACT.email}`}
-                className="font-mono text-[14px] text-[#14171C] hover:text-[#2F5DFF] transition-colors duration-150 break-all"
-              >
-                {CONTACT.email}
-              </a>
-              <CopyButton value={CONTACT.email} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+          {/* Left half: map + address */}
+          <div className="flex flex-col rounded-2xl border border-slate-200 overflow-hidden bg-white/75 backdrop-blur-xl shadow-[0_20px_48px_-30px_rgba(217,70,239,0.35)]">
+            <div className="flex-1 min-h-[320px]">
+              <iframe
+                title="Store location"
+                src={CONTACT.mapEmbedSrc}
+                width="100%"
+                height="100%"
+                style={{ border: 0, display: "block", minHeight: 320 }}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
             </div>
-          </SectionCard>
-
-          <SectionCard icon={<WhatsAppIcon />} title="WhatsApp">
-            <div className="flex items-center justify-between gap-3">
-              <a
-                href={`https://wa.me/${CONTACT.whatsappDial}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-mono text-[14px] text-[#14171C] hover:text-[#2F5DFF] transition-colors duration-150"
-              >
-                {CONTACT.whatsapp}
-              </a>
-              <CopyButton value={CONTACT.whatsapp} />
+            <div className="p-5 border-t border-slate-200">
+              <h4 className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-slate-400 mb-2">
+                Store address
+              </h4>
+              <address className="not-italic text-[14px] text-slate-900 leading-relaxed">
+                {CONTACT.address.line1}
+                <br />
+                {CONTACT.address.line2}
+                <br />
+                {CONTACT.address.line3}
+              </address>
             </div>
-          </SectionCard>
+          </div>
 
-          <SectionCard icon={<PhoneIcon />} title="Call us">
-            <div className="flex flex-col gap-3">
-              {CONTACT.mobiles.map((m) => (
-                <div key={m.number} className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[11.5px] text-[#9CA0A6] mb-0.5">{m.label}</p>
-                    <a
-                      href={`tel:${m.number.replace(/\s/g, "")}`}
-                      className="font-mono text-[14px] text-[#14171C] hover:text-[#2F5DFF] transition-colors duration-150"
-                    >
-                      {m.number}
-                    </a>
-                  </div>
-                  <CopyButton value={m.number} />
+          {/* Right half: email, whatsapp, mobile numbers */}
+          <div className="flex flex-col gap-5">
+            <SectionCard icon={<MailIcon />} title="Email">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <a
+                  href={`mailto:${CONTACT.email}`}
+                  className="font-mono text-[14px] text-slate-900 hover:text-fuchsia-600 transition-colors duration-150 break-all"
+                >
+                  {CONTACT.email}
+                </a>
+                <CopyButton value={CONTACT.email} />
+              </div>
+            </SectionCard>
+
+            <SectionCard icon={<WhatsAppIcon className="w-5 h-5" />} title="WhatsApp">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <span className="font-mono text-[14px] text-slate-900">{CONTACT.whatsapp}</span>
+                <div className="flex items-center gap-3">
+                  <CopyButton value={CONTACT.whatsapp} />
+                  <ActionButton
+                    href={`https://wa.me/${CONTACT.whatsappDial}`}
+                    icon={<WhatsAppIcon />}
+                    label="Message"
+                    tone="brand"
+                    external
+                  />
                 </div>
-              ))}
-            </div>
-          </SectionCard>
+              </div>
+            </SectionCard>
+
+            <SectionCard icon={<PhoneIcon className="w-5 h-5" />} title="Call us">
+              <div className="flex flex-col gap-4">
+                {CONTACT.mobiles.map((m) => {
+                  const digits = toDialDigits(m.number);
+                  return (
+                    <div
+                      key={m.number}
+                      className="flex items-center justify-between gap-3 flex-wrap pb-4 last:pb-0 border-b border-slate-100 last:border-0"
+                    >
+                      <div>
+                        <p className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-slate-400 mb-0.5">
+                          {m.label}
+                        </p>
+                        <span className="font-mono text-[14px] text-slate-900">{m.number}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <CopyButton value={m.number} />
+                        <ActionButton
+                          href={`tel:${digits}`}
+                          icon={<PhoneIcon />}
+                          label="Call"
+                        />
+                        <ActionButton
+                          href={`https://wa.me/${digits}`}
+                          icon={<WhatsAppIcon />}
+                          label="WhatsApp"
+                          tone="brand"
+                          external
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </SectionCard>
+          </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes contact-drift {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-24px, 20px) scale(1.08); }
+        }
+        .contact-blob { animation: contact-drift 18s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .contact-blob { animation: none !important; }
+        }
+      `}</style>
     </div>
   );
 };

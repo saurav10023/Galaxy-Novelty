@@ -18,6 +18,15 @@
 //    also been polished — softer active-state glow, tap-scale feedback, and
 //    a scroll-snap strip so it feels considered at every breakpoint instead
 //    of just a horizontally-clipped row on mobile.
+//
+// VISUAL PASS: restyled to Light Glass Tech across every section (sticky
+// tabs, brand/price strips, sidebar rail, mobile sheet, skeletons, applied-
+// filter chips, empty/error states, pagination) -- glass panels, fuchsia/
+// cyan gradient for active/CTA states, mono labels, semantic rose for
+// errors. Also: brand and price strips now wrap into a normal flex row on
+// md+ screens instead of staying a horizontally-scrollable rail once
+// there's room to show everything at once -- that scroll affordance only
+// earns its keep on narrow viewports.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -132,18 +141,18 @@ const getPricePresets = (categoryKey) => {
   return isBudgetCategory ? BUDGET_PRICE_PRESETS : PHONE_PRICE_PRESETS;
 };
 
-// A plain pill — coral fill/glow when selected, otherwise neutral. Same
-// font as the rest of the UI; scales down slightly on tap for tactile
-// feedback and picks up a soft coral glow instead of a flat border when
-// active, so the "selected" state reads clearly at any screen size.
+// A plain pill — gradient fill/glow when selected, otherwise glass. Scales
+// down slightly on tap for tactile feedback and picks up the signature
+// fuchsia-to-cyan gradient instead of a flat border when active, so the
+// "selected" state reads clearly at any screen size.
 const PricePresetChip = ({ preset, isSelected, onSelect }) => (
   <button
     onClick={() => onSelect(isSelected ? null : preset)}
     aria-pressed={isSelected}
     className={`snap-start shrink-0 px-4 py-2 sm:px-3.5 sm:py-1.5 rounded-full border text-[13px] font-medium transition-all duration-150 whitespace-nowrap active:scale-95 ${
       isSelected
-        ? "bg-[#FF5630] border-[#FF5630] text-white shadow-[0_4px_14px_-2px_rgba(255,86,48,0.45)]"
-        : "bg-white border-[#E5E7EA] text-[#4B4F57] hover:border-[#FF5630]/60 hover:text-[#14171C] hover:shadow-sm"
+        ? "bg-gradient-to-r from-fuchsia-500 to-cyan-500 border-transparent text-white shadow-[0_4px_14px_-2px_rgba(217,70,239,0.45)]"
+        : "bg-white/80 backdrop-blur-md border-slate-200 text-slate-500 hover:border-fuchsia-300 hover:text-slate-900 hover:shadow-sm"
     }`}
   >
     {preset.label}
@@ -151,7 +160,7 @@ const PricePresetChip = ({ preset, isSelected, onSelect }) => (
 );
 
 const PricePresetStrip = ({ presets, selectedPreset, onSelect }) => (
-  <div className="flex items-center gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scroll-smooth [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+  <div className="flex items-center gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scroll-smooth md:flex-wrap md:overflow-visible md:snap-none [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
     {presets.map((p) => {
       const isSelected =
         selectedPreset && selectedPreset.min === p.min && selectedPreset.max === p.max;
@@ -161,32 +170,35 @@ const PricePresetStrip = ({ presets, selectedPreset, onSelect }) => (
 );
 
 /* ---------------------------------------------------------------------- */
-/* Skeletons                                                              */
+/* Skeletons — glass tone, mirrors the real ProductCard layout            */
 /* ---------------------------------------------------------------------- */
 
+const Shimmer = ({ className = "" }) => (
+  <div className={`relative overflow-hidden bg-gradient-to-br from-fuchsia-50 via-slate-100 to-cyan-50 ${className}`}>
+    <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+  </div>
+);
+
 const SkeletonCard = () => (
-  <div>
-    <div className="aspect-square rounded-2xl bg-[#F1F1EE] relative overflow-hidden">
-      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-    </div>
-    <div className="h-3.5 bg-[#F1F1EE] rounded mt-3 w-4/5 relative overflow-hidden">
-      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-    </div>
-    <div className="h-3.5 bg-[#F1F1EE] rounded mt-2 w-2/5 relative overflow-hidden">
-      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+  <div className="rounded-2xl border border-slate-200 bg-white/70 backdrop-blur-md overflow-hidden">
+    <Shimmer className="aspect-square" />
+    <div className="p-3.5 space-y-2.5">
+      <Shimmer className="h-2.5 w-1/3 rounded-full" />
+      <Shimmer className="h-3 w-4/5 rounded-full" />
+      <Shimmer className="h-4 w-1/2 rounded-full mt-1" />
     </div>
   </div>
 );
 
 const SkeletonBrandChip = () => (
-  <div className="shrink-0 flex flex-col items-center gap-1.5 rounded-xl border border-[#E5E7EA] px-3 py-2 min-w-[76px] animate-pulse">
-    <div className="w-9 h-9 rounded-full bg-[#F1F1EE]" />
-    <div className="h-2.5 w-10 bg-[#F1F1EE] rounded" />
+  <div className="shrink-0 flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white/70 backdrop-blur-md px-3 py-2 min-w-[76px]">
+    <Shimmer className="w-9 h-9 rounded-full" />
+    <Shimmer className="h-2.5 w-10 rounded-full" />
   </div>
 );
 
 const SkeletonPriceChip = () => (
-  <div className="shrink-0 h-[30px] w-[80px] rounded-full border border-[#E5E7EA] bg-[#F6F7F3] animate-pulse" />
+  <Shimmer className="shrink-0 h-[30px] w-[80px] rounded-full border border-slate-200" />
 );
 
 /* ---------------------------------------------------------------------- */
@@ -196,7 +208,7 @@ const SkeletonPriceChip = () => (
 const BrandStrip = ({ brands, loading, error, selectedBrand, onSelect }) => {
   if (loading) {
     return (
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible">
         {Array.from({ length: 6 }).map((_, i) => (
           <SkeletonBrandChip key={i} />
         ))}
@@ -204,14 +216,14 @@ const BrandStrip = ({ brands, loading, error, selectedBrand, onSelect }) => {
     );
   }
   if (error) {
-    return <p className="text-[13px] text-[#C0402E] px-1 py-1">{error}</p>;
+    return <p className="text-[13px] text-rose-600 px-1 py-1">{error}</p>;
   }
   if (brands.length === 0) {
-    return <p className="text-[13px] text-[#9CA0A6] px-1 py-1">No brands available in this category yet.</p>;
+    return <p className="text-[13px] text-slate-400 px-1 py-1">No brands available in this category yet.</p>;
   }
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+    <div className="flex items-center gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible">
       {brands.map((b) => {
         const isSelected = selectedBrand === b.brand;
         return (
@@ -219,27 +231,27 @@ const BrandStrip = ({ brands, loading, error, selectedBrand, onSelect }) => {
             key={b.brand}
             onClick={() => onSelect(isSelected ? "" : b.brand)}
             aria-pressed={isSelected}
-            className={`shrink-0 flex flex-col items-center gap-1.5 rounded-xl border px-3 py-2 min-w-[76px] transition-all duration-150 ${
+            className={`shrink-0 flex flex-col items-center gap-1.5 rounded-xl border px-3 py-2 min-w-[76px] transition-all duration-150 backdrop-blur-md ${
               isSelected
-                ? "border-[#2F5DFF] bg-[#EEF2FF] ring-1 ring-[#2F5DFF]/30"
-                : "border-[#E5E7EA] bg-white hover:border-[#2F5DFF]/50"
+                ? "border-fuchsia-300 bg-fuchsia-50/80 ring-1 ring-fuchsia-300/50 shadow-[0_8px_20px_-12px_rgba(217,70,239,0.4)]"
+                : "border-slate-200 bg-white/80 hover:border-fuchsia-200 hover:bg-fuchsia-50/40"
             }`}
           >
             {b.sampleImage ? (
               <img
                 src={b.sampleImage}
                 alt={b.brand}
-                className="w-9 h-9 rounded-full object-cover border border-[#E5E7EA]"
+                className="w-9 h-9 rounded-full object-cover border border-slate-200"
               />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-[#F6F7F3] border border-[#E5E7EA] flex items-center justify-center text-[#9CA0A6]">
+              <div className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400">
                 <IconTag />
               </div>
             )}
-            <span className="text-[11.5px] font-medium text-[#14171C] truncate max-w-[70px]" title={b.brand}>
+            <span className="text-[11.5px] font-medium text-slate-900 truncate max-w-[70px]" title={b.brand}>
               {b.brand}
             </span>
-            <span className="text-[10px] font-mono text-[#9CA0A6]">{b.productCount}</span>
+            <span className="text-[10px] font-mono text-slate-400">{b.productCount}</span>
           </button>
         );
       })}
@@ -252,7 +264,7 @@ const BrandStrip = ({ brands, loading, error, selectedBrand, onSelect }) => {
 /* ---------------------------------------------------------------------- */
 
 const SectionLabel = ({ children }) => (
-  <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.08em] text-[#9CA0A6] px-1">
+  <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 px-1">
     {children}
   </span>
 );
@@ -439,34 +451,47 @@ const ShopPage = () => {
     : null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-8">
+    <div className="relative max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-8 overflow-x-clip">
       <style>{`
         @keyframes shimmer { 100% { transform: translateX(100%); } }
         @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes sheetDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-        .card-in { animation: fadeInUp 0.35s ease both; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card-in { animation: fadeInUp 0.45s cubic-bezier(.2,.8,.3,1.05) both; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .card-in { animation: none !important; opacity: 1 !important; transform: none !important; }
+          [class*="animate-[shimmer"] { animation: none !important; }
+        }
       `}</style>
+
+      {/* Ambient wash, clamped so it can never force horizontal scroll */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-10 right-0 w-[min(420px,80vw)] h-[min(420px,80vw)] rounded-full bg-gradient-to-br from-cyan-200/20 to-fuchsia-200/20 blur-3xl -z-10"
+      />
 
       {/* Header */}
       <div className="mb-5 md:mb-6">
-        <h1 className="font-display text-[20px] sm:text-[24px] font-semibold text-[#14171C] tracking-tight">
+        <h1 className="font-display text-[20px] sm:text-[24px] font-semibold text-slate-900 tracking-tight">
           {search ? `Results for "${search}"` : activeCategory ? activeCategory.label : "All products"}
           {brand ? ` \u00B7 ${brand}` : ""}
         </h1>
-        <p className="text-[13.5px] text-[#4B4F57] mt-1">
+        <p className="text-[13.5px] text-slate-500 mt-1">
           {loading ? "Searching\u2026" : `${pagination.total} product${pagination.total === 1 ? "" : "s"}`}
         </p>
       </div>
 
       {/* Sticky bar — category tabs ONLY. Everything else below scrolls normally
           so it doesn't eat the viewport once a category is selected. */}
-      <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 bg-white/80 backdrop-blur-md border-b border-[#E5E7EA] supports-[backdrop-filter]:bg-white/70">
+      <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 bg-white/80 backdrop-blur-xl border-b border-slate-200">
         <div className="flex items-center gap-2 py-3 overflow-x-auto whitespace-nowrap sm:flex-wrap">
           <button
             onClick={() => handleCategoryChange("")}
-            className={`shrink-0 px-3.5 py-2 rounded-full text-[13.5px] font-medium transition-colors duration-150 ${
-              !category ? "bg-[#14171C] text-white" : "text-[#4B4F57] hover:bg-[#F6F7F3]"
+            className={`shrink-0 px-3.5 py-2 rounded-full text-[13.5px] font-medium transition-all duration-150 ${
+              !category
+                ? "bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white shadow-[0_6px_16px_-6px_rgba(217,70,239,0.5)]"
+                : "text-slate-500 hover:bg-fuchsia-50 hover:text-fuchsia-600"
             }`}
           >
             All
@@ -475,8 +500,10 @@ const ShopPage = () => {
             <button
               key={c.key}
               onClick={() => handleCategoryChange(c.key)}
-              className={`shrink-0 px-3.5 py-2 rounded-full text-[13.5px] font-medium transition-colors duration-150 ${
-                category === c.key ? "bg-[#14171C] text-white" : "text-[#4B4F57] hover:bg-[#F6F7F3]"
+              className={`shrink-0 px-3.5 py-2 rounded-full text-[13.5px] font-medium transition-all duration-150 ${
+                category === c.key
+                  ? "bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white shadow-[0_6px_16px_-6px_rgba(217,70,239,0.5)]"
+                  : "text-slate-500 hover:bg-fuchsia-50 hover:text-fuchsia-600"
               }`}
             >
               {c.label}
@@ -507,7 +534,7 @@ const ShopPage = () => {
               {selectedPreset && (
                 <button
                   onClick={() => handlePricePresetSelect(null)}
-                  className="text-[11px] font-medium text-[#FF5630] hover:underline"
+                  className="text-[11px] font-medium text-fuchsia-600 hover:text-fuchsia-700 hover:underline"
                 >
                   Reset
                 </button>
@@ -515,7 +542,7 @@ const ShopPage = () => {
             </div>
             <div className="mt-1.5">
               {brandsLoading ? (
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <SkeletonPriceChip key={i} />
                   ))}
@@ -532,12 +559,12 @@ const ShopPage = () => {
         {category ? (
           <button
             onClick={() => setMobileFiltersOpen(true)}
-            className="lg:hidden inline-flex items-center gap-1.5 rounded-full border border-[#E5E7EA] text-[13px] font-medium text-[#14171C] px-4 py-2 hover:border-[#14171C] bg-white shadow-sm"
+            className="lg:hidden inline-flex items-center gap-1.5 rounded-full border border-slate-200 text-[13px] font-medium text-slate-900 px-4 py-2 hover:border-fuchsia-300 bg-white/80 backdrop-blur-md shadow-sm transition-colors duration-150"
           >
             <IconFilter />
             Filters
             {activeFilterCount > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[#2F5DFF] text-white text-[10.5px] font-mono">
+              <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white text-[10.5px] font-mono">
                 {activeFilterCount}
               </span>
             )}
@@ -561,7 +588,7 @@ const ShopPage = () => {
         {category && mobileFiltersOpen && (
           <div className="lg:hidden fixed inset-0 z-50 flex items-end">
             <div
-              className={`absolute inset-0 bg-black/40 transition-opacity duration-200 ${sheetClosing ? "opacity-0" : "opacity-100"}`}
+              className={`absolute inset-0 bg-slate-950/40 backdrop-blur-sm transition-opacity duration-200 ${sheetClosing ? "opacity-0" : "opacity-100"}`}
               onClick={closeSheet}
               aria-hidden="true"
             />
@@ -569,20 +596,20 @@ const ShopPage = () => {
               role="dialog"
               aria-modal="true"
               aria-label="Filters"
-              className="relative w-full max-h-[85vh] bg-white rounded-t-3xl shadow-2xl overflow-hidden flex flex-col"
+              className="relative w-full max-h-[85vh] bg-white/95 backdrop-blur-xl rounded-t-3xl shadow-[0_-20px_60px_-20px_rgba(217,70,239,0.25)] overflow-hidden flex flex-col"
               style={{ animation: `${sheetClosing ? "sheetDown" : "sheetUp"} 0.22s cubic-bezier(0.32,0.72,0,1) both` }}
             >
               <div className="flex justify-center pt-2.5 pb-1 shrink-0">
-                <div className="w-9 h-1 rounded-full bg-[#E5E7EA]" />
+                <div className="w-9 h-1 rounded-full bg-slate-300" />
               </div>
-              <div className="flex items-center justify-between px-5 pt-1 pb-3 border-b border-[#E5E7EA] shrink-0">
-                <h2 className="font-display text-[15px] font-semibold text-[#14171C]">
+              <div className="flex items-center justify-between px-5 pt-1 pb-3 border-b border-slate-200 shrink-0">
+                <h2 className="font-display text-[15px] font-semibold text-slate-900">
                   Filters
                   {activeFilterCount > 0 && (
-                    <span className="ml-2 text-[12px] font-mono text-[#9CA0A6]">({activeFilterCount})</span>
+                    <span className="ml-2 text-[12px] font-mono text-slate-400">({activeFilterCount})</span>
                   )}
                 </h2>
-                <button onClick={closeSheet} className="p-1.5 rounded-full text-[#4B4F57] hover:bg-[#F6F7F3]" aria-label="Close filters">
+                <button onClick={closeSheet} className="p-1.5 rounded-full text-slate-500 hover:bg-fuchsia-50 hover:text-fuchsia-600 transition-colors duration-150" aria-label="Close filters">
                   <IconClose />
                 </button>
               </div>
@@ -593,10 +620,10 @@ const ShopPage = () => {
                 </div>
                 <DynamicFilterSidebar category={category} filters={filters} onFilterChange={handleFilterChange} />
               </div>
-              <div className="px-5 py-4 border-t border-[#E5E7EA] shrink-0 bg-white">
+              <div className="px-5 py-4 border-t border-slate-200 shrink-0 bg-white/95 backdrop-blur-xl">
                 <button
                   onClick={closeSheet}
-                  className="w-full rounded-full bg-[#14171C] text-white text-[14px] font-medium py-3 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                  className="w-full rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white text-[14px] font-medium py-3 flex items-center justify-center gap-2 active:scale-[0.98] shadow-[0_10px_24px_-8px_rgba(217,70,239,0.45)] transition-transform duration-150"
                 >
                   Show {pagination.total} result{pagination.total === 1 ? "" : "s"}
                 </button>
@@ -609,11 +636,11 @@ const ShopPage = () => {
         <div className="flex-1 min-w-0">
           {activeFilterCount > 0 && (
             <div className="flex items-center gap-2 mb-4 flex-wrap">
-              <span className="text-[12.5px] text-[#9CA0A6]">
+              <span className="text-[12.5px] text-slate-400">
                 {activeFilterCount} filter{activeFilterCount === 1 ? "" : "s"} applied
               </span>
               {brand && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#14171C] text-white text-[12px] font-medium pl-3 pr-1.5 py-1">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white text-[12px] font-medium pl-3 pr-1.5 py-1 shadow-[0_4px_12px_-4px_rgba(217,70,239,0.4)]">
                   {brand}
                   <button onClick={() => handleBrandSelect("")} aria-label="Clear brand filter" className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center">
                     <IconClose width="9" height="9" />
@@ -621,42 +648,42 @@ const ShopPage = () => {
                 </span>
               )}
               {priceChipLabel && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF5630] text-white text-[12px] font-medium pl-3 pr-1.5 py-1">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white text-[12px] font-medium pl-3 pr-1.5 py-1 shadow-[0_4px_12px_-4px_rgba(217,70,239,0.4)]">
                   {priceChipLabel}
                   <button onClick={() => handlePricePresetSelect(null)} aria-label="Clear price filter" className="rounded-full hover:bg-white/20 w-4 h-4 flex items-center justify-center">
                     <IconClose width="9" height="9" />
                   </button>
                 </span>
               )}
-              <button onClick={clearFilters} className="text-[12.5px] font-medium text-[#2F5DFF] hover:underline">
+              <button onClick={clearFilters} className="text-[12.5px] font-medium text-fuchsia-600 hover:text-fuchsia-700 hover:underline">
                 Clear all
               </button>
             </div>
           )}
 
           {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
               {Array.from({ length: 8 }).map((_, i) => (
                 <SkeletonCard key={i} />
               ))}
             </div>
           ) : error ? (
-            <div className="rounded-xl bg-[#FBEAE7] border border-[#F2C6BD] px-3.5 py-2.5 text-[13px] text-[#C0402E]">{error}</div>
+            <div className="rounded-xl bg-rose-50 border border-rose-200 px-3.5 py-2.5 text-[13px] text-rose-600">{error}</div>
           ) : products.length === 0 ? (
             <div className="text-center py-16">
-              <div className="w-12 h-12 rounded-full bg-[#F6F7F3] border border-[#E5E7EA] flex items-center justify-center mx-auto mb-4 text-[#9CA0A6]">
+              <div className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-md border border-slate-200 flex items-center justify-center mx-auto mb-4 text-slate-400 shadow-[0_2px_10px_-2px_rgba(15,23,42,0.1)]">
                 <IconFilter />
               </div>
-              <p className="text-[14px] font-medium text-[#14171C]">No products match these filters.</p>
-              <p className="text-[13px] text-[#9CA0A6] mt-1">Try widening your search or clearing a filter.</p>
+              <p className="text-[14px] font-medium text-slate-900">No products match these filters.</p>
+              <p className="text-[13px] text-slate-400 mt-1">Try widening your search or clearing a filter.</p>
               {activeFilterCount > 0 && (
-                <button onClick={clearFilters} className="mt-4 rounded-full border border-[#E5E7EA] text-[13px] font-medium text-[#14171C] px-4 py-2 hover:border-[#14171C]">
+                <button onClick={clearFilters} className="mt-4 rounded-full border border-slate-200 text-[13px] font-medium text-slate-900 px-4 py-2 bg-white/80 backdrop-blur-md hover:border-fuchsia-300 transition-colors duration-150">
                   Clear filters
                 </button>
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
               {products.map((p, i) => (
                 <div key={p._id} className="card-in" style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}>
                   <ProductCard product={p} />
@@ -670,17 +697,17 @@ const ShopPage = () => {
               <button
                 disabled={page <= 1}
                 onClick={() => updateParams({ page: String(page - 1) }, { resetPage: false })}
-                className="text-[13px] font-medium text-[#4B4F57] disabled:opacity-40 hover:text-[#14171C]"
+                className="text-[13px] font-medium text-slate-500 disabled:opacity-40 hover:text-fuchsia-600 transition-colors duration-150"
               >
                 Previous
               </button>
-              <span className="text-[13px] text-[#9CA0A6]">
+              <span className="font-mono text-[12.5px] text-slate-400 bg-white/80 backdrop-blur-md border border-slate-200 rounded-full px-3 py-1">
                 Page {pagination.page} of {pagination.pages}
               </span>
               <button
                 disabled={page >= pagination.pages}
                 onClick={() => updateParams({ page: String(page + 1) }, { resetPage: false })}
-                className="text-[13px] font-medium text-[#4B4F57] disabled:opacity-40 hover:text-[#14171C]"
+                className="text-[13px] font-medium text-slate-500 disabled:opacity-40 hover:text-fuchsia-600 transition-colors duration-150"
               >
                 Next
               </button>

@@ -3,6 +3,13 @@
 // Renders only whatever fields are present on `product.pricing` -- never
 // assumes purchasePrice/negotiation exist, since customer-facing responses
 // never include them (stripped server-side by sanitizeProduct.js).
+//
+// Restyled to Light Glass Tech: white glass card, fuchsia/cyan gradient
+// price (bg-clip-text, per the palette's "signature gradient" usage),
+// glass spec pills, fuchsia-tinted hover lift + border + shadow, image
+// zoom on hover. Fixed: the "Inactive" badge was absolutely positioned
+// inside a non-relative container, so it was anchoring against the page
+// rather than the image tile -- the image wrapper is now `relative`.
 
 import { Link } from "react-router-dom";
 
@@ -42,30 +49,32 @@ const ProductCard = ({ product }) => {
   return (
     <Link
       to={`/product/${product._id}`}
-      className="group block rounded-xl border border-[#E1E3DD] bg-white overflow-hidden hover:border-[#14171C] transition-colors duration-150"
+      className="group block rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-md overflow-hidden transition-all duration-300 ease-out hover:-translate-y-1 hover:border-fuchsia-300 hover:shadow-[0_20px_40px_-24px_rgba(217,70,239,0.4)]"
     >
-      <div className="aspect-square bg-[#F6F7F3] flex items-center justify-center overflow-hidden">
+      <div className="relative aspect-square bg-gradient-to-br from-fuchsia-50 via-white to-cyan-50 flex items-center justify-center overflow-hidden">
         {product.images?.[0]?.url ? (
           <img
             src={product.images[0].url}
             alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-200"
+            className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.05]"
           />
         ) : (
-          <span className="font-mono text-[11px] text-[#9CA0A6] uppercase">No image</span>
+          <span className="font-mono text-[11px] text-slate-400 uppercase tracking-wide">No image</span>
         )}
+
         {!product.isActive && (
-          <span className="absolute mt-2 ml-2 self-start rounded-full bg-[#F1F1EE] text-[#4B4F57] text-[10.5px] font-medium px-2 py-0.5">
+          <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full bg-white/85 backdrop-blur-md border border-slate-200 text-slate-500 text-[10.5px] font-mono uppercase tracking-wide px-2.5 py-1 shadow-[0_2px_10px_-2px_rgba(15,23,42,0.15)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
             Inactive
           </span>
         )}
       </div>
 
       <div className="p-3.5">
-        <p className="text-[12px] text-[#9CA0A6] font-mono uppercase tracking-wide mb-0.5">
+        <p className="text-[11px] text-slate-400 font-mono uppercase tracking-[0.14em] mb-0.5">
           {product.brand}
         </p>
-        <h3 className="text-[14.5px] font-medium text-[#14171C] leading-snug mb-1.5 line-clamp-2">
+        <h3 className="font-display text-[14.5px] font-semibold text-slate-900 leading-snug mb-1.5 line-clamp-2 group-hover:text-fuchsia-600 transition-colors duration-200">
           {product.name}
         </h3>
 
@@ -74,7 +83,7 @@ const ProductCard = ({ product }) => {
             {specs.map((s) => (
               <span
                 key={s}
-                className="font-mono text-[10.5px] text-[#4B4F57] bg-[#F6F7F3] border border-[#E1E3DD] rounded-full px-2 py-0.5"
+                className="font-mono text-[10.5px] text-slate-500 bg-white/70 backdrop-blur-md border border-slate-200 rounded-full px-2.5 py-0.5"
               >
                 {s}
               </span>
@@ -82,7 +91,7 @@ const ProductCard = ({ product }) => {
           </div>
         )}
 
-        <p className="font-mono text-[15px] font-semibold text-[#14171C]">
+        <p className="font-mono text-[15px] font-bold bg-gradient-to-r from-fuchsia-600 to-cyan-600 bg-clip-text text-transparent">
           ₹{product.pricing?.sellingPrice?.toLocaleString("en-IN")}
         </p>
       </div>

@@ -576,17 +576,17 @@ Do not wrap inside \`\`\`.
     return (
       <div className="w-full max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-6 md:py-8">
         <div className="animate-pulse space-y-5">
-          <div className="h-3 w-24 bg-[#F1F1EE] rounded" />
-          <div className="h-7 w-56 bg-[#F1F1EE] rounded" />
+          <div className="h-3 w-24 bg-slate-100 rounded" />
+          <div className="h-7 w-56 bg-slate-100 rounded" />
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] gap-5 lg:gap-6">
             <div className="space-y-5 order-2 lg:order-1">
-              <div className="h-24 bg-[#F1F1EE] rounded-2xl" />
-              <div className="h-44 bg-[#F1F1EE] rounded-2xl" />
-              <div className="h-56 bg-[#F1F1EE] rounded-2xl" />
+              <div className="h-24 bg-slate-100 rounded-2xl" />
+              <div className="h-44 bg-slate-100 rounded-2xl" />
+              <div className="h-56 bg-slate-100 rounded-2xl" />
             </div>
             <div className="space-y-4 order-1 lg:order-2">
-              <div className="h-64 bg-[#F1F1EE] rounded-2xl" />
-              <div className="h-20 bg-[#F1F1EE] rounded-2xl" />
+              <div className="h-64 bg-slate-100 rounded-2xl" />
+              <div className="h-20 bg-slate-100 rounded-2xl" />
             </div>
           </div>
         </div>
@@ -601,22 +601,25 @@ Do not wrap inside \`\`\`.
     <div className="w-full max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-6 md:py-8">
       <style>{`
         @keyframes formFadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .form-section { animation: formFadeUp 0.32s ease both; }
+        .form-section { animation: formFadeUp 0.32s cubic-bezier(.2,.8,.3,1.1) both; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) {
+          .form-section { animation: none !important; opacity: 1 !important; transform: none !important; }
+        }
       `}</style>
 
       {/* Header */}
       <div className="mb-6 flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#9CA0A6] mb-1">
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-slate-400 mb-1">
             Inventory {isEdit ? "· Edit" : "· New"}
           </p>
-          <h1 className="font-display text-[20px] sm:text-[23px] font-semibold text-[#14171C] tracking-tight">
+          <h1 className="font-display text-[20px] sm:text-[23px] font-semibold text-slate-900 tracking-tight">
             {isEdit ? "Edit product" : "Add product"}
           </h1>
         </div>
         {activeCategoryLabel && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F6F7F3] border border-[#E1E3DD] text-[12px] font-medium text-[#4B4F57] px-3 py-1.5">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/75 backdrop-blur-md border border-slate-200 text-[12px] font-medium text-slate-500 px-3 py-1.5">
             <IconLayers />
             {activeCategoryLabel}
           </span>
@@ -624,7 +627,7 @@ Do not wrap inside \`\`\`.
       </div>
 
       {error && (
-        <div className="mb-5 rounded-xl bg-[#FBEAE7] border border-[#F2C6BD] px-4 py-3 text-[13px] text-[#C0402E] flex items-start gap-2">
+        <div className="mb-5 rounded-xl bg-rose-50/80 border border-rose-200 px-4 py-3 text-[13px] text-rose-600 flex items-start gap-2">
           <span className="font-semibold shrink-0">Couldn't save —</span>
           <span>{error}</span>
         </div>
@@ -639,7 +642,7 @@ Do not wrap inside \`\`\`.
           {/* ---- Main column ---- */}
           <div className="space-y-5 sm:space-y-6 order-2 lg:order-1 min-w-0">
             {/* Category */}
-            <section className="form-section bg-white border border-[#E1E3DD] rounded-2xl p-4 sm:p-5 shadow-[0_1px_2px_rgba(20,23,28,0.04)]">
+            <section className="form-section bg-white/75 backdrop-blur-xl border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-[0_18px_40px_-32px_rgba(217,70,239,0.3)]">
               <SectionHeading icon={<IconLayers />} title="Category" />
               <Select
                 value={category}
@@ -649,7 +652,7 @@ Do not wrap inside \`\`\`.
                 options={CATEGORIES.map((c) => ({ value: c.key, label: c.label }))}
               />
               {isEdit && (
-                <p className="flex items-center gap-1.5 text-[12px] text-[#9CA0A6] mt-2">
+                <p className="flex items-center gap-1.5 text-[12px] text-slate-400 mt-2">
                   <IconLock /> Category can't be changed after creation.
                 </p>
               )}
@@ -657,13 +660,13 @@ Do not wrap inside \`\`\`.
 
             {/* Common fields */}
             <section
-              className="form-section bg-white border border-[#E1E3DD] rounded-2xl p-4 sm:p-5 shadow-[0_1px_2px_rgba(20,23,28,0.04)]"
+              className="form-section bg-white/75 backdrop-blur-xl border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-[0_18px_40px_-32px_rgba(217,70,239,0.3)]"
               style={{ animationDelay: "40ms" }}
             >
               <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <SectionHeading icon={<IconTag />} title="Basic details" bare />
                 {aiFillCount > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6B3FD9] bg-[#F1ECFC] px-2.5 py-1 rounded-full">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-violet-600 bg-violet-50 px-2.5 py-1 rounded-full">
                     <IconSparkle /> {aiFillCount} field{aiFillCount === 1 ? "" : "s"} AI-filled
                   </span>
                 )}
@@ -684,7 +687,7 @@ Do not wrap inside \`\`\`.
                       type="button"
                       onClick={handleAiAutofill}
                       disabled={aiLoading || !common.name.trim()}
-                      className="group shrink-0 inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-[#6B3FD9] to-[#8657E0] text-white text-[13px] font-medium px-4 py-2.5 shadow-[0_2px_10px_-2px_rgba(107,63,217,0.5)] hover:shadow-[0_4px_14px_-2px_rgba(107,63,217,0.6)] hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none w-full sm:w-auto"
+                      className="group shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-500 text-white text-[13px] font-medium px-4 py-2.5 shadow-[0_10px_24px_-10px_rgba(139,92,246,0.55)] hover:shadow-[0_14px_28px_-10px_rgba(139,92,246,0.65)] hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 w-full sm:w-auto"
                     >
                       {aiLoading ? (
                         <>
@@ -699,14 +702,14 @@ Do not wrap inside \`\`\`.
                       )}
                     </button>
                   </div>
-                  <p className="text-[11.5px] text-[#9CA0A6] mt-1.5">
+                  <p className="text-[11.5px] text-slate-400 mt-1.5">
                     Fills brand, description, and spec fields below — only where empty. Price and stock are
                     never auto-filled — enter those in the panel{" "}
                     <span className="hidden lg:inline">on the right</span>
                     <span className="lg:hidden">below</span>.
                   </p>
                   {aiError && (
-                    <p className="text-[12px] text-[#C0402E] mt-1.5">{aiError}</p>
+                    <p className="text-[12px] text-rose-600 mt-1.5">{aiError}</p>
                   )}
                 </Field>
 
@@ -732,7 +735,7 @@ Do not wrap inside \`\`\`.
 
             {/* Category-specific fields */}
             <section
-              className="form-section bg-white border border-[#E1E3DD] rounded-2xl p-4 sm:p-5"
+              className="form-section bg-white/75 backdrop-blur-xl border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-[0_18px_40px_-32px_rgba(217,70,239,0.3)]"
               style={{ animationDelay: "80ms" }}
             >
               <SectionHeading icon={<IconLayers />} title={`${activeCategoryLabel || ""} details`} />
@@ -771,7 +774,7 @@ Do not wrap inside \`\`\`.
                       )}
 
                       {f.type === "select" && (
-                        <div className={isAiFilled ? `${aiFilledRing} rounded-lg` : ""}>
+                        <div className={isAiFilled ? `${aiFilledRing} rounded-xl` : ""}>
                           <Select
                             value={categoryFields[f.key] ?? ""}
                             onChange={(v) => handleCategoryFieldChange(f.key, v)}
@@ -799,11 +802,11 @@ Do not wrap inside \`\`\`.
                                 type="button"
                                 onClick={() => handleMultiselectToggle(f.key, opt)}
                                 aria-pressed={selected}
-                                className={`shrink-0 px-3.5 py-1.5 rounded-full border text-[12.5px] font-medium transition-all duration-150 active:scale-95 ${
+                                className={`shrink-0 px-3.5 py-1.5 rounded-full border text-[12.5px] font-mono transition-all duration-150 active:scale-95 ${
                                   selected
-                                    ? "bg-[#2F5DFF] border-[#2F5DFF] text-white shadow-[0_2px_10px_-2px_rgba(47,93,255,0.45)]"
-                                    : `bg-white border-[#E1E3DD] text-[#4B4F57] hover:border-[#2F5DFF]/60 hover:text-[#14171C] ${
-                                        isAiFilled ? "ring-2 ring-[#6B3FD9]/30" : ""
+                                    ? "bg-gradient-to-r from-fuchsia-500 to-cyan-500 border-transparent text-white shadow-[0_8px_20px_-8px_rgba(217,70,239,0.5)]"
+                                    : `bg-white/70 backdrop-blur-md border-slate-200 text-slate-500 hover:border-fuchsia-200 hover:text-slate-900 ${
+                                        isAiFilled ? "ring-2 ring-violet-400/40" : ""
                                       }`
                                 }`}
                               >
@@ -821,36 +824,36 @@ Do not wrap inside \`\`\`.
 
             {/* Images */}
             <section
-              className="form-section bg-white border border-[#E1E3DD] rounded-2xl p-4 sm:p-5 space-y-4"
+              className="form-section bg-white/75 backdrop-blur-xl border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-4 shadow-[0_18px_40px_-32px_rgba(217,70,239,0.3)]"
               style={{ animationDelay: "120ms" }}
             >
               <SectionHeading icon={<IconImage />} title="Images" />
 
               {imageActionError && (
-                <div className="rounded-lg bg-[#FBEAE7] border border-[#F2C6BD] px-3.5 py-2.5 text-[13px] text-[#C0402E]">
+                <div className="rounded-xl bg-rose-50/80 border border-rose-200 px-3.5 py-2.5 text-[13px] text-rose-600">
                   {imageActionError}
                 </div>
               )}
 
               {isEdit && existingImages.length > 0 && (
                 <div>
-                  <p className="font-mono text-[10.5px] uppercase tracking-wider text-[#9CA0A6] mb-2">
+                  <p className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-slate-400 mb-2">
                     Current images
                   </p>
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                     {existingImages.map((img, i) => (
                       <div
                         key={img.publicId || `${img.url}-${i}`}
-                        className="group relative aspect-square rounded-xl overflow-hidden border border-[#E1E3DD] bg-[#F6F7F3]"
+                        className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-50"
                       >
                         <img src={img.url} alt="" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors" />
+                        <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/25 transition-colors" />
                         <button
                           type="button"
                           onClick={() => handleRemoveImage(img.publicId)}
                           disabled={!img.publicId}
                           title={!img.publicId ? "This image has no publicId and can't be removed here" : "Remove image"}
-                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 text-[#C0402E] flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:opacity-0"
+                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 text-rose-600 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:opacity-0"
                           aria-label="Remove image"
                         >
                           <IconClose />
@@ -862,7 +865,7 @@ Do not wrap inside \`\`\`.
               )}
 
               <div>
-                <label className="block font-mono text-[10.5px] uppercase tracking-wider text-[#9CA0A6] mb-2">
+                <label className="block font-mono text-[10.5px] uppercase tracking-[0.16em] text-slate-400 mb-2">
                   {isEdit ? "Add more images (optional)" : "Product images (optional)"}
                 </label>
 
@@ -870,25 +873,25 @@ Do not wrap inside \`\`\`.
                   {newImageFiles.map((file, i) => (
                     <div
                       key={`${file.name}-${i}`}
-                      className="group relative aspect-square rounded-xl overflow-hidden border border-[#E1E3DD]"
+                      className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200"
                     >
                       <img src={newImagePreviews[i]} alt="" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors" />
+                      <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/25 transition-colors" />
                       <button
                         type="button"
                         onClick={() => handleRemoveNewImage(i)}
-                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 text-[#C0402E] flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 text-rose-600 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
                         aria-label="Remove selected image"
                       >
                         <IconClose />
                       </button>
-                      <span className="absolute bottom-1 left-1 right-1 truncate text-center text-[9.5px] font-mono text-white bg-black/40 rounded px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="absolute bottom-1 left-1 right-1 truncate text-center text-[9.5px] font-mono text-white bg-slate-900/50 rounded px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         New
                       </span>
                     </div>
                   ))}
 
-                  <label className="aspect-square flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-[#D8DAD3] bg-[#F6F7F3] text-[#9CA0A6] cursor-pointer hover:border-[#2F5DFF] hover:text-[#2F5DFF] hover:bg-[#F5F7FF] transition-colors">
+                  <label className="aspect-square flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/80 text-slate-400 cursor-pointer hover:border-fuchsia-300 hover:text-fuchsia-600 hover:bg-fuchsia-50/50 transition-colors duration-150">
                     <IconPlus />
                     <span className="text-[11px] font-medium">Add</span>
                     <input
@@ -902,7 +905,7 @@ Do not wrap inside \`\`\`.
                 </div>
 
                 {isEdit && newImageFiles.length > 0 && (
-                  <p className="text-[11.5px] text-[#9CA0A6] mt-2.5">
+                  <p className="text-[11.5px] text-slate-400 mt-2.5">
                     These will upload when you click "Upload now" below, or automatically when you save changes.
                   </p>
                 )}
@@ -912,7 +915,7 @@ Do not wrap inside \`\`\`.
                 <button
                   type="button"
                   onClick={handleAddImages}
-                  className="rounded-lg border border-[#E1E3DD] text-[13px] font-medium text-[#14171C] px-3.5 py-2 hover:border-[#14171C] hover:bg-[#F6F7F3] transition-colors w-full sm:w-auto"
+                  className="rounded-xl border border-slate-200 text-[13px] font-medium text-slate-900 px-3.5 py-2 hover:border-fuchsia-300 hover:bg-fuchsia-50 transition-colors duration-150 w-full sm:w-auto"
                 >
                   Upload {newImageFiles.length} image{newImageFiles.length === 1 ? "" : "s"} now
                 </button>
@@ -924,17 +927,17 @@ Do not wrap inside \`\`\`.
               Sticky on desktop so pricing/stock stay reachable without scrolling,
               which is the whole point after using AI auto-fill higher up the page. */}
           <div className="space-y-4 order-1 lg:order-2 lg:sticky lg:top-6">
-            <section className="form-section bg-gradient-to-b from-[#F3F6FF] to-[#EEF2FF] border-2 border-[#2F5DFF]/20 rounded-2xl p-4 sm:p-5 shadow-[0_2px_12px_-4px_rgba(47,93,255,0.25)]">
+            <section className="form-section bg-gradient-to-b from-fuchsia-50 to-cyan-50 border border-fuchsia-200 rounded-2xl p-4 sm:p-5 shadow-[0_20px_44px_-24px_rgba(217,70,239,0.4)]">
               <div className="flex items-center gap-2 mb-1">
-                <span className="w-6 h-6 rounded-lg bg-white border border-[#2F5DFF]/25 text-[#2F5DFF] flex items-center justify-center shrink-0">
+                <span className="w-6 h-6 rounded-lg bg-white/80 backdrop-blur-md border border-fuchsia-200 text-fuchsia-600 flex items-center justify-center shrink-0">
                   <IconRupee />
                 </span>
-                <h2 className="text-[13px] font-semibold text-[#14171C]">Pricing &amp; stock</h2>
-                <span className="ml-auto text-[10px] font-mono uppercase tracking-wider text-[#2F5DFF] bg-white border border-[#2F5DFF]/30 rounded-full px-2 py-0.5 shrink-0">
+                <h2 className="text-[13px] font-semibold text-slate-900">Pricing &amp; stock</h2>
+                <span className="ml-auto text-[10px] font-mono uppercase tracking-[0.14em] text-fuchsia-600 bg-white/80 border border-fuchsia-200 rounded-full px-2 py-0.5 shrink-0">
                   You fill this
                 </span>
               </div>
-              <p className="text-[11.5px] text-[#6B6F76] mb-4">
+              <p className="text-[11.5px] text-slate-500 mb-4">
                 Never touched by AI auto-fill — always enter these yourself.
               </p>
 
@@ -996,21 +999,21 @@ Do not wrap inside \`\`\`.
 
             {isEdit && (
               <section
-                className="form-section bg-white border border-[#E1E3DD] rounded-2xl p-4 sm:p-5"
+                className="form-section bg-white/75 backdrop-blur-xl border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-[0_18px_40px_-32px_rgba(217,70,239,0.3)]"
                 style={{ animationDelay: "40ms" }}
               >
-                <h2 className="text-[13px] font-semibold text-[#14171C] mb-3">Status</h2>
-                <div className="flex items-center gap-2 text-[13.5px] text-[#14171C]">
+                <h2 className="text-[13px] font-semibold text-slate-900 mb-3">Status</h2>
+                <div className="flex items-center gap-2 text-[13.5px] text-slate-900">
                   <span
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium ${
-                      isActive ? "bg-[#E6F4EA] text-[#1E7B3B]" : "bg-[#F1F1EE] text-[#4B4F57]"
+                      isActive ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"
                     }`}
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-[#1E7B3B]" : "bg-[#9CA0A6]"}`} />
+                    <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-slate-400"}`} />
                     {isActive ? "Active" : "Inactive"}
                   </span>
                 </div>
-                <p className="text-[12px] text-[#9CA0A6] mt-1.5">
+                <p className="text-[12px] text-slate-400 mt-1.5">
                   Change this from the inventory list.
                 </p>
               </section>
@@ -1018,18 +1021,18 @@ Do not wrap inside \`\`\`.
 
             {/* Desktop-only save actions live in the rail too, so there's no need
                 to scroll to the bottom of a long form to submit. */}
-            <div className="hidden lg:flex flex-col gap-2 bg-white border border-[#E1E3DD] rounded-2xl p-4 sm:p-5">
+            <div className="hidden lg:flex flex-col gap-2 bg-white/75 backdrop-blur-xl border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-[0_18px_40px_-32px_rgba(217,70,239,0.3)]">
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-full bg-[#14171C] text-white text-[14px] font-medium px-6 py-2.5 hover:bg-[#2F5DFF] active:scale-[0.98] transition-all duration-150 disabled:opacity-50 w-full"
+                className="rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white text-[14px] font-medium px-6 py-2.5 shadow-[0_14px_32px_-16px_rgba(217,70,239,0.55)] hover:-translate-y-0.5 hover:shadow-[0_18px_38px_-16px_rgba(217,70,239,0.65)] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:hover:translate-y-0 w-full"
               >
                 {saving ? "Saving…" : isEdit ? "Save changes" : "Create product"}
               </button>
               <button
                 type="button"
                 onClick={onCancel || onDone}
-                className="text-[13.5px] font-medium text-[#4B4F57] hover:text-[#14171C] px-3 py-2 w-full text-center"
+                className="text-[13.5px] font-medium text-slate-500 hover:text-slate-900 px-3 py-2 w-full text-center transition-colors duration-150"
               >
                 Cancel
               </button>
@@ -1038,18 +1041,18 @@ Do not wrap inside \`\`\`.
         </div>
 
         {/* Mobile/tablet sticky save bar (hidden on desktop — the rail above handles it there) */}
-        <div className="lg:hidden sticky bottom-0 -mx-4 sm:-mx-6 mt-5 bg-white/95 backdrop-blur-md border-t border-[#E1E3DD] px-4 sm:px-6 py-3 flex items-center gap-3 shadow-[0_-4px_16px_rgba(20,23,28,0.06)]">
+        <div className="lg:hidden sticky bottom-0 -mx-4 sm:-mx-6 mt-5 bg-white/90 backdrop-blur-xl border-t border-slate-200 px-4 sm:px-6 py-3 flex items-center gap-3 shadow-[0_-8px_24px_-8px_rgba(217,70,239,0.2)]">
           <button
             type="submit"
             disabled={saving}
-            className="rounded-full bg-[#14171C] text-white text-[14px] font-medium px-6 py-2.5 hover:bg-[#2F5DFF] active:scale-[0.98] transition-all duration-150 disabled:opacity-50 flex-1 sm:flex-none"
+            className="rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white text-[14px] font-medium px-6 py-2.5 shadow-[0_14px_32px_-16px_rgba(217,70,239,0.55)] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 flex-1 sm:flex-none"
           >
             {saving ? "Saving…" : isEdit ? "Save changes" : "Create product"}
           </button>
           <button
             type="button"
             onClick={onCancel || onDone}
-            className="text-[13.5px] font-medium text-[#4B4F57] hover:text-[#14171C] px-3 py-2.5"
+            className="text-[13.5px] font-medium text-slate-500 hover:text-slate-900 px-3 py-2.5 transition-colors duration-150"
           >
             Cancel
           </button>
@@ -1064,17 +1067,17 @@ Do not wrap inside \`\`\`.
 /* ---------------------------------------------------------------------- */
 
 const inputClass =
-  "w-full font-mono text-[13.5px] bg-[#F6F7F3] border border-[#E1E3DD] rounded-lg px-3.5 py-2.5 text-[#14171C] placeholder:text-[#9CA0A6] focus:outline-none focus:border-[#2F5DFF] focus:ring-[3px] focus:ring-[#2F5DFF]/12 focus:bg-white transition-all";
+  "w-full font-mono text-[13.5px] bg-white/70 border border-slate-200 rounded-xl px-3.5 py-2.5 min-h-[42px] text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-150 focus:border-fuchsia-300 focus:ring-[3px] focus:ring-fuchsia-400/15 focus:bg-white";
 
-const aiFilledRing = "ring-2 ring-[#6B3FD9]/40 border-[#6B3FD9]";
+const aiFilledRing = "ring-2 ring-violet-400/40 border-violet-300";
 
 const SectionHeading = ({ icon, title, bare }) => (
   <h2
-    className={`flex items-center gap-2 text-[13px] font-semibold text-[#14171C] capitalize ${
+    className={`flex items-center gap-2 text-[13px] font-semibold text-slate-900 capitalize ${
       bare ? "" : "mb-4"
     }`}
   >
-    <span className="w-6 h-6 rounded-md bg-[#F6F7F3] border border-[#E1E3DD] text-[#4B4F57] flex items-center justify-center shrink-0">
+    <span className="w-6 h-6 rounded-lg bg-gradient-to-r from-fuchsia-50 to-cyan-50 border border-slate-200 text-slate-500 flex items-center justify-center shrink-0">
       {icon}
     </span>
     {title}
@@ -1083,10 +1086,10 @@ const SectionHeading = ({ icon, title, bare }) => (
 
 const Field = ({ label, required, aiFilled, children, className = "" }) => (
   <div className={className}>
-    <label className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-[#9CA0A6] mb-1.5">
-      {label} {required && <span className="text-[#C0402E]">*</span>}
+    <label className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">
+      {label} {required && <span className="text-rose-500">*</span>}
       {aiFilled && (
-        <span className="normal-case font-sans inline-flex items-center gap-0.5 text-[10px] font-medium text-[#6B3FD9] bg-[#F1ECFC] rounded-full px-1.5 py-0.5">
+        <span className="normal-case font-sans inline-flex items-center gap-0.5 text-[10px] font-medium text-violet-600 bg-violet-50 rounded-full px-1.5 py-0.5">
           <IconSparkle width="9" height="9" /> AI
         </span>
       )}
@@ -1103,12 +1106,12 @@ const ToggleSwitch = ({ checked, onChange, highlighted }) => (
     aria-checked={checked}
     onClick={() => onChange(!checked)}
     className={`inline-flex items-center gap-2.5 rounded-full border px-1 py-1 pr-3 transition-colors duration-150 ${
-      checked ? "bg-[#EEF2FF] border-[#2F5DFF]/40" : "bg-white border-[#E1E3DD]"
-    } ${highlighted ? "ring-2 ring-[#6B3FD9]/30" : ""}`}
+      checked ? "bg-fuchsia-50 border-fuchsia-200" : "bg-white/70 border-slate-200"
+    } ${highlighted ? "ring-2 ring-violet-400/40" : ""}`}
   >
     <span
       className={`relative w-9 h-5 rounded-full transition-colors duration-150 ${
-        checked ? "bg-[#2F5DFF]" : "bg-[#D8DAD3]"
+        checked ? "bg-gradient-to-r from-fuchsia-500 to-cyan-500" : "bg-slate-300"
       }`}
     >
       <span
@@ -1117,7 +1120,7 @@ const ToggleSwitch = ({ checked, onChange, highlighted }) => (
         }`}
       />
     </span>
-    <span className={`text-[13px] font-medium ${checked ? "text-[#14171C]" : "text-[#9CA0A6]"}`}>
+    <span className={`text-[13px] font-medium ${checked ? "text-slate-900" : "text-slate-400"}`}>
       {checked ? "Yes" : "No"}
     </span>
   </button>
