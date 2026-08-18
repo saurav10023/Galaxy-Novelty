@@ -12,6 +12,7 @@ import ShopPage from './pages/ShopPage.jsx'
 import ProductCard from './components/ProductCard.jsx'
 import ProductDetail from './pages/ProductDetail.jsx'
 import Contact from './pages/Contact.jsx'
+import ProductDisplayPage from './pages/ProductDisplay.jsx'
 
 
 
@@ -26,7 +27,8 @@ const router = createBrowserRouter([
         {path:"/admin" , element:<AdminDashboard/>},
         {path:"/shop" , element:<ShopPage/>},
         {path:"/product/:id" , element:<ProductDetail/>},
-        {path:"/contact",element:<Contact/>}
+        {path:"/contact",element:<Contact/>},
+        {path:"/productdisplay" , element:<ProductDisplayPage/>}
       ]
     }
   ])
